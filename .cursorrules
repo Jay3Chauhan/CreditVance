@@ -1,0 +1,31 @@
+# CardSage Cursor Rules (.cursorrules)
+# Applicable to all Flutter/Dart development in this workspace
+
+[General]
+language = "dart"
+framework = "flutter"
+architecture = "clean_architecture"
+state_management = "provider_and_value_notifier"
+
+[Architecture Rules]
+- Adhere strictly to Feature-First Clean Architecture: core/ and features/<feature>/(domain, data, presentation).
+- Presentation layer: ZERO setState(). Calling setState() is strictly forbidden.
+- Use ChangeNotifier with Provider for application/feature state machines (ViewState: initial, loading, loaded, empty, error, refreshing).
+- Use ValueNotifier<T> and ValueListenableBuilder<T> for local widget state (tab selection, input mask, card flip, modal sheets).
+- All screens must extend StatelessWidget.
+- Keep widget build methods clean and decompose large trees into focused, const-friendly leaf widgets.
+
+[Code Quality & MNC Standards]
+- Always apply 'const' constructors wherever possible to maximize render performance.
+- Never write inline Color(0x...) or hardcoded hex colors in widgets; use AppColors.*.
+- Never use arbitrary icon libraries or raw icons in screens; use centralized AppIcons.* in core/constants/app_icons.dart.
+- Typography must reference AppTypography.* or Theme.of(context).textTheme.
+- Padding and spacing must reference AppDimensions.*.
+- Handle every edge case: offline status, 401 unauthorized, 404 not found, 500 server errors, empty data lists.
+- Provide comprehensive docstrings and comments on public methods.
+
+[Security & Zero-Knowledge Vault]
+- Full 16-digit PANs and CVVs are strictly local-only and stored in SecureVaultService (hardware-backed flutter_secure_storage).
+- Never transmit raw card numbers or CVV to the backend API.
+- Prompt biometric authentication (local_auth) before revealing or copying PAN/CVV.
+- Implement 30-second auto-clear timer on clipboard operations.

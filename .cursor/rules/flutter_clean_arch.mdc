@@ -1,0 +1,31 @@
+---
+description: Flutter Clean Architecture, Provider, ValueNotifier and Zero-setState Rules for Cursor
+globs: **/*.dart
+alwaysApply: true
+---
+
+# Cursor Rule: CardSage Clean Architecture & Vibe Coding
+
+## Core Principles
+1. **Zero `setState`**:
+   - `setState` is not allowed anywhere.
+   - Use `ChangeNotifier` + `Provider` for business logic and data fetching.
+   - Use `ValueNotifier<T>` + `ValueListenableBuilder<T>` for local UI micro-state.
+   - All screen widgets must be `StatelessWidget`.
+
+2. **Design Tokens & Centralization**:
+   - Colors: `AppColors.*` in `core/constants/app_colors.dart`
+   - Icons: `AppIcons.*` in `core/constants/app_icons.dart`
+   - Text styles: `AppTypography.*` in `core/constants/app_typography.dart`
+   - Spacing: `AppDimensions.*` in `core/constants/app_dimensions.dart`
+   - Always prefer `const` widgets and constructors to avoid frame drops.
+
+3. **Error Handling & State Machine**:
+   - Use `ViewState` enum (`initial`, `loading`, `loaded`, `empty`, `error`, `refreshing`).
+   - Use `ErrorStateView` with user-friendly retry buttons.
+   - Provide offline fallback so screens never break when backend is unreachable.
+
+4. **Security & Zero-Knowledge Vault**:
+   - Sensitive credit card PANs and CVVs stay exclusively in `SecureVaultService` backed by Keychain/KeyStore.
+   - Biometric authentication (`local_auth`) is mandatory to view or copy PAN/CVV.
+   - Automatic 30-second clipboard purge.
