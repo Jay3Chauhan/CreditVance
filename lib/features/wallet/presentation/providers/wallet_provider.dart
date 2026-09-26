@@ -1,11 +1,15 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import '../../../../core/storage/secure_vault_service.dart';
 import '../../../../core/utils/view_state.dart';
+import '../../../catalog/domain/entities/catalog_card.dart';
 import '../../domain/entities/user_card.dart';
 import '../../domain/repositories/wallet_repository.dart';
 
-/// Provider for User Wallet and Zero-Knowledge Vault.
-/// Strictly ZERO setState: uses ChangeNotifier and notifies listeners.
+enum WalletViewMode { stack, list }
+
+/// Wallet state machine: cards, focus, view mode, and the timed reveal window.
 class WalletProvider extends ChangeNotifier {
   final WalletRepository _repository;
 
@@ -15,57 +19,56 @@ class WalletProvider extends ChangeNotifier {
   ViewState get state => _state;
 
   List<UserCard> _cards = [];
-  List<UserCard> get cards => _cards;
+  List<UserCard> get cards => List.unmodifiable(_cards);
 
   int _focusedIndex = 0;
-  int get focusedIndex => _focusedIndex;
+  int get focusedIndex => _cards.isEmpty ? 0 : _focusedIndex.clamp(0, _cards.length - 1);
+  UserCard? get focusedCard => _cards.isEmpty ? null : _cards[focusedIndex];
+
+  WalletViewMode _viewMode = WalletViewMode.stack;
+  WalletViewMode get viewMode => _viewMode;
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  // Cache of temporarily unmasked vault credentials (auto-clears after 30 seconds)
-  final Map<int, Map<String, String>> _unmaskedCards = {};
-  final Map<int, Timer> _unmaskTimers = {};
+  Duration clipboardDuration = const Duration(seconds: 30);
+  Duration revealDuration = const Duration(seconds: 30);
 
-  bool isCardUnmasked(int userCardId) => _unmaskedCards.containsKey(userCardId);
-  Map<String, String>? getUnmaskedData(int userCardId) => _unmaskedCards[userCardId];
+  // Reveal window (single card at a time).
+  int? _revealedId;
+  VaultSecrets? _secrets;
+  Timer? _revealTimer;
+  final ValueNotifier<int> _revealRemaining = ValueNotifier<int>(0);
+  ValueListenable<int> get revealRemaining => _revealRemaining;
 
-  /// Initialize and load wallet cards
+  bool isRevealed(int userCardId) => _revealedId == userCardId && _secrets != null;
+  VaultSecrets? secretsFor(int userCardId) => isRevealed(userCardId) ? _secrets : null;
+
+  double get totalAnnualFees => _cards.fold(0.0, (sum, c) => sum + c.annualFee);
+
+  UserCard? get nextDueCard {
+    final withDue = _cards.where((c) => c.estimatedDueDate != null).toList()
+      ..sort((a, b) => a.estimatedDueDate!.compareTo(b.estimatedDueDate!));
+    return withDue.isEmpty ? null : withDue.first;
+  }
+
   Future<void> init() async {
     if (_state != ViewState.initial) return;
     await loadCards();
   }
 
   Future<void> loadCards({bool isRefresh = false}) async {
-    if (isRefresh) {
-      _setState(ViewState.refreshing);
-    } else {
-      _setState(ViewState.loading);
-    }
-
+    _setState(isRefresh && _cards.isNotEmpty ? ViewState.refreshing : ViewState.loading);
     final result = await _repository.getUserCards(forceRefresh: isRefresh);
-
     result.when(
       success: (userCards) {
         _cards = userCards;
         _errorMessage = null;
-        if (_focusedIndex >= _cards.length) {
-          _focusedIndex = _cards.isEmpty ? 0 : _cards.length - 1;
-        }
-
-        if (_cards.isEmpty) {
-          _setState(ViewState.empty);
-        } else {
-          _setState(ViewState.loaded);
-        }
+        _setState(_cards.isEmpty ? ViewState.empty : ViewState.loaded);
       },
-      failure: (message, statusCode) {
+      failure: (message, _) {
         _errorMessage = message;
-        if (_cards.isEmpty) {
-          _setState(ViewState.error);
-        } else {
-          _setState(ViewState.loaded);
-        }
+        _setState(_cards.isEmpty ? ViewState.error : ViewState.loaded);
       },
     );
   }
@@ -76,41 +79,63 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Copies 16-digit card number to clipboard after biometric verification
-  Future<bool> copyCardNumber(int userCardId) async {
-    return await _repository.copyCardNumberWithBiometrics(userCardId);
+  void focusCard(int userCardId) {
+    final idx = _cards.indexWhere((c) => c.id == userCardId);
+    if (idx != -1) setFocusedIndex(idx);
   }
 
-  /// Reveals card details (PAN, CVV, Expiry) in UI with biometric check and 30s auto-hide
-  Future<bool> revealCardDetails(int userCardId) async {
-    if (isCardUnmasked(userCardId)) {
-      hideCardDetails(userCardId);
-      return false;
-    }
-
-    final data = await _repository.getCardDetailsWithBiometrics(userCardId);
-    if (data != null) {
-      _unmaskedCards[userCardId] = data;
-      _unmaskTimers[userCardId]?.cancel();
-      _unmaskTimers[userCardId] = Timer(const Duration(seconds: 30), () {
-        hideCardDetails(userCardId);
-      });
-      notifyListeners();
-      return true;
-    }
-    return false;
-  }
-
-  void hideCardDetails(int userCardId) {
-    _unmaskTimers[userCardId]?.cancel();
-    _unmaskTimers.remove(userCardId);
-    _unmaskedCards.remove(userCardId);
+  void toggleViewMode() {
+    _viewMode = _viewMode == WalletViewMode.stack ? WalletViewMode.list : WalletViewMode.stack;
     notifyListeners();
   }
 
-  /// Adds a new card to user wallet and hardware vault
-  Future<bool> addCard({
-    required int cardId,
+  Future<VaultStatus> copyCardNumber(int userCardId) =>
+      _repository.copyCardNumber(userCardId, clearAfter: clipboardDuration);
+
+  Future<VaultStatus> copyCvv(int userCardId) =>
+      _repository.copyField(userCardId, 'cvv', clearAfter: clipboardDuration);
+
+  Future<VaultStatus> copyExpiry(int userCardId) =>
+      _repository.copyField(userCardId, 'exp', clearAfter: clipboardDuration);
+
+  /// Toggles the reveal window. Returns the vault status of the attempt
+  /// (or success when hiding).
+  Future<VaultStatus> toggleReveal(int userCardId) async {
+    if (isRevealed(userCardId)) {
+      hideSecrets();
+      return VaultStatus.success;
+    }
+    final (status, secrets) = await _repository.readSecrets(userCardId);
+    if (!status.isSuccess || secrets == null) return status;
+
+    _revealTimer?.cancel();
+    _revealedId = userCardId;
+    _secrets = secrets;
+    _revealRemaining.value = revealDuration.inSeconds;
+    _revealTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      final next = _revealRemaining.value - 1;
+      if (next <= 0) {
+        hideSecrets();
+      } else {
+        _revealRemaining.value = next;
+      }
+    });
+    notifyListeners();
+    return VaultStatus.success;
+  }
+
+  void hideSecrets() {
+    _revealTimer?.cancel();
+    _revealTimer = null;
+    final wasRevealed = _revealedId != null;
+    _revealedId = null;
+    _secrets = null;
+    _revealRemaining.value = 0;
+    if (wasRevealed) notifyListeners();
+  }
+
+  Future<UserCard?> addCard({
+    required CatalogCard card,
     required String nickname,
     required String last4Digits,
     int? billingCycleDay,
@@ -119,7 +144,7 @@ class WalletProvider extends ChangeNotifier {
     String? expiry,
   }) async {
     final result = await _repository.addUserCard(
-      cardId: cardId,
+      card: card,
       nickname: nickname,
       last4Digits: last4Digits,
       billingCycleDay: billingCycleDay,
@@ -127,33 +152,84 @@ class WalletProvider extends ChangeNotifier {
       cvv: cvv,
       expiry: expiry,
     );
-
-    if (result.isSuccess) {
-      _cards.add(result.dataOrNull!);
-      _focusedIndex = _cards.length - 1;
-      _setState(ViewState.loaded);
-      return true;
-    }
-    return false;
+    return result.when(
+      success: (created) {
+        _cards = [..._cards, created];
+        _focusedIndex = _cards.length - 1;
+        _errorMessage = null;
+        _setState(ViewState.loaded);
+        return created;
+      },
+      failure: (message, _) {
+        _errorMessage = message;
+        notifyListeners();
+        return null;
+      },
+    );
   }
 
-  /// Deletes a card from user wallet and clears from secure vault
-  Future<bool> deleteCard(int userCardId) async {
+  Future<bool> updateCard(UserCard card, {String? nickname, int? billingCycleDay}) async {
+    final result = await _repository.updateUserCard(card, nickname: nickname, billingCycleDay: billingCycleDay);
+    return result.when(
+      success: (updated) {
+        _cards = _cards.map((c) => c.id == updated.id ? updated : c).toList();
+        notifyListeners();
+        return true;
+      },
+      failure: (message, _) {
+        _errorMessage = message;
+        notifyListeners();
+        return false;
+      },
+    );
+  }
+
+  /// Optimistic delete with undo support: returns the removed card and index.
+  Future<(UserCard, int)?> deleteCard(int userCardId) async {
+    final index = _cards.indexWhere((c) => c.id == userCardId);
+    if (index == -1) return null;
+    final removed = _cards[index];
+    if (_revealedId == userCardId) hideSecrets();
+
     final result = await _repository.deleteUserCard(userCardId);
-    if (result.isSuccess) {
-      _cards.removeWhere((c) => c.id == userCardId);
-      hideCardDetails(userCardId);
-      if (_focusedIndex >= _cards.length && _cards.isNotEmpty) {
-        _focusedIndex = _cards.length - 1;
-      }
-      if (_cards.isEmpty) {
-        _setState(ViewState.empty);
-      } else {
-        _setState(ViewState.loaded);
-      }
-      return true;
+    if (!result.isSuccess) {
+      _errorMessage = result.errorOrNull;
+      notifyListeners();
+      return null;
     }
-    return false;
+    _cards = [..._cards]..removeAt(index);
+    if (_focusedIndex >= _cards.length) _focusedIndex = _cards.isEmpty ? 0 : _cards.length - 1;
+    _setState(_cards.isEmpty ? ViewState.empty : ViewState.loaded);
+    return (removed, index);
+  }
+
+  void reorder(int oldIndex, int newIndex) {
+    if (newIndex > oldIndex) newIndex -= 1;
+    if (oldIndex == newIndex) return;
+    final focusedId = focusedCard?.id;
+    final list = [..._cards];
+    final item = list.removeAt(oldIndex);
+    list.insert(newIndex, item);
+    _cards = list;
+    if (focusedId != null) _focusedIndex = _cards.indexWhere((c) => c.id == focusedId);
+    notifyListeners();
+    _repository.saveOrder(_cards.map((c) => c.id).toList());
+  }
+
+  Future<void> loadSampleCards() async {
+    _setState(ViewState.loading);
+    await _repository.loadSampleCards();
+    await loadCards();
+  }
+
+  /// Called on sign-out / erase: wipes local wallet and in-memory secrets.
+  Future<void> reset({bool eraseLocal = false}) async {
+    hideSecrets();
+    if (eraseLocal) await _repository.clearLocalWallet();
+    _cards = [];
+    _focusedIndex = 0;
+    _state = ViewState.initial;
+    notifyListeners();
   }
 
   void _setState(ViewState newState) {
@@ -163,11 +239,8 @@ class WalletProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    for (final timer in _unmaskTimers.values) {
-      timer.cancel();
-    }
-    _unmaskTimers.clear();
-    _unmaskedCards.clear();
+    _revealTimer?.cancel();
+    _revealRemaining.dispose();
     super.dispose();
   }
 }

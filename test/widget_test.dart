@@ -10,6 +10,10 @@ void main() {
       expect(CurrencyFormatter.format(150000), '₹1,50,000');
       expect(CurrencyFormatter.formatPercentage(5.0), '5%');
       expect(CurrencyFormatter.formatPercentage(3.3), '3.3%');
+      expect(CurrencyFormatter.compact(950), '₹950');
+      expect(CurrencyFormatter.compact(12500), '₹12.5K');
+      expect(CurrencyFormatter.compact(320000), '₹3.2L');
+      expect(CurrencyFormatter.compact(11000000), '₹1.1Cr');
     });
 
     test('CardFormatter masks and formats PAN correctly', () {

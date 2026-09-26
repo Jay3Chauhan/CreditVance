@@ -47,3 +47,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Provides Theme.AppCompat used by LaunchTheme (required by local_auth BiometricPrompt).
+    implementation("androidx.appcompat:appcompat:1.7.0")
+}

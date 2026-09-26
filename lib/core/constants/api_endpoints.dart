@@ -1,20 +1,15 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
-
-/// Centralized API Endpoints and Network Configuration for CardSage.
+/// API endpoints and network configuration.
 class ApiEndpoints {
   const ApiEndpoints._();
 
-  /// Resolves the optimal base URL depending on device platform
-  static String get baseUrl {
-    if (kIsWeb) return 'https://credit.jaychauhan.tech/api/v1';
-    if (Platform.isAndroid) return 'https://credit.jaychauhan.tech/api/v1';
-    return 'https://credit.jaychauhan.tech/api/v1';
-  }
+  /// Override at build time: `--dart-define=API_BASE_URL=https://staging.example.com/api/v1`
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://credit.jaychauhan.tech/api/v1',
+  );
 
-  // Network Timeout durations
-  static const Duration connectTimeout = Duration(seconds: 8);
-  static const Duration receiveTimeout = Duration(seconds: 8);
+  static const Duration connectTimeout = Duration(seconds: 10);
+  static const Duration receiveTimeout = Duration(seconds: 12);
 
   // Auth
   static const String register = '/auth/register';
@@ -26,15 +21,17 @@ class ApiEndpoints {
   static String cardDetail(String slug) => '/cards/$slug';
   static String cardTab(String slug, String tabName) => '/cards/$slug/tabs/$tabName';
 
-  // User Cards & Portfolio
+  // Wallet
   static const String userCards = '/user-cards';
   static String userCardById(int id) => '/user-cards/$id';
 
-  // Advisor & Calculator
+  // Advisor & calculator
   static const String advisorRecommend = '/advisor/recommend';
   static const String calculator = '/calculator/calculate';
 
   // Taxonomies
   static const String banks = '/banks';
   static const String categories = '/categories';
+
+  static const int pageSize = 20;
 }

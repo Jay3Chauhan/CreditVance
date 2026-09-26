@@ -1,106 +1,121 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:cardsage/core/network/api_result.dart';
-import 'package:cardsage/core/utils/view_state.dart';
-import 'package:cardsage/features/auth/domain/entities/user.dart';
 import 'package:cardsage/features/auth/data/repositories/auth_repository.dart';
+import 'package:cardsage/features/auth/domain/entities/user.dart';
 import 'package:cardsage/features/auth/presentation/providers/auth_provider.dart';
+import 'package:flutter_test/flutter_test.dart';
 
-class MockAuthRepository implements AuthRepository {
-  bool authenticated = false;
-  User? currentUser;
-
-  @override
-  bool get isAuthenticated => authenticated;
+class FakeAuthRepository implements AuthRepository {
+  User? session;
+  bool guest = false;
 
   @override
   Future<ApiResult<User>> login(String email, String password) async {
-    if (password == 'wrong') {
-      return const ApiFailure('Invalid email or password');
-    }
-    authenticated = true;
-    currentUser = User(id: 42, email: email, fullName: 'Test User');
-    return ApiSuccess(currentUser!);
+    if (password == 'wrong') return const ApiFailure('Incorrect email or password', statusCode: 401);
+    session = User(id: 42, email: email, fullName: 'Test User');
+    return ApiSuccess(session!);
   }
 
   @override
   Future<ApiResult<User>> register(String email, String password, String fullName) async {
-    if (email == 'existing@cardsage.app') {
-      return const ApiFailure('Email already registered');
-    }
-    authenticated = true;
-    currentUser = User(id: 43, email: email, fullName: fullName);
-    return ApiSuccess(currentUser!);
+    if (email == 'existing@creditvance.app') return const ApiFailure('An account with this email already exists');
+    session = User(id: 43, email: email, fullName: fullName);
+    return ApiSuccess(session!);
   }
 
   @override
-  Future<ApiResult<User>> loginAsDemo() async {
-    authenticated = true;
-    currentUser = const User(id: 1, email: 'jay@cardsage.app', fullName: 'Jay (Vault Owner)');
-    return ApiSuccess(currentUser!);
+  Future<User> continueAsGuest() async {
+    guest = true;
+    return User.guest;
   }
 
   @override
-  Future<ApiResult<User>> getMe() async {
-    if (currentUser != null) {
-      return ApiSuccess(currentUser!);
-    }
-    return const ApiFailure('Not found');
-  }
+  Future<void> exitGuest() async => guest = false;
+
+  @override
+  User? restoreSession() => guest ? User.guest : session;
+
+  @override
+  Future<ApiResult<User>> refreshProfile() async =>
+      session == null ? const ApiFailure('No session') : ApiSuccess(session!);
 
   @override
   Future<void> logout() async {
-    authenticated = false;
-    currentUser = null;
+    session = null;
+    guest = false;
   }
 }
 
 void main() {
-  group('AuthProvider State Machine Tests', () {
-    late MockAuthRepository mockRepo;
-    late AuthProvider authProvider;
+  group('AuthProvider', () {
+    late FakeAuthRepository repo;
+    late AuthProvider auth;
 
     setUp(() {
-      mockRepo = MockAuthRepository();
-      authProvider = AuthProvider(mockRepo);
+      repo = FakeAuthRepository();
+      auth = AuthProvider(repo);
     });
 
-    test('Initializes with demo user and loaded state', () async {
-      await authProvider.init();
-      expect(authProvider.state, ViewState.loaded);
-      expect(authProvider.isAuthenticated, isTrue);
-      expect(authProvider.user?.fullName, 'Jay (Vault Owner)');
+    test('restores to signed out when there is no session', () {
+      auth.restore();
+      expect(auth.status, AuthStatus.signedOut);
+      expect(auth.isAuthenticated, isFalse);
     });
 
-    test('Logs out cleanly and resets authentication status', () async {
-      await authProvider.init();
-      expect(authProvider.isAuthenticated, isTrue);
-
-      await authProvider.logout();
-      expect(authProvider.user, isNull);
-      expect(authProvider.isAuthenticated, isFalse);
-      expect(authProvider.state, ViewState.loaded);
+    test('restores a persisted signed-in session', () {
+      repo.session = const User(id: 1, email: 'a@b.co', fullName: 'Aarav Sharma');
+      auth.restore();
+      expect(auth.status, AuthStatus.signedIn);
+      expect(auth.user?.initials, 'AS');
+      expect(auth.user?.firstName, 'Aarav');
     });
 
-    test('Handles successful login and updates user state', () async {
-      final success = await authProvider.login('custom@cardsage.app', 'CorrectPassword!');
-      expect(success, isTrue);
-      expect(authProvider.isAuthenticated, isTrue);
-      expect(authProvider.user?.email, 'custom@cardsage.app');
-      expect(authProvider.state, ViewState.loaded);
+    test('successful login signs in', () async {
+      final ok = await auth.login('custom@creditvance.app', 'CorrectPassword!');
+      expect(ok, isTrue);
+      expect(auth.status, AuthStatus.signedIn);
+      expect(auth.user?.email, 'custom@creditvance.app');
+      expect(auth.isBusy, isFalse);
     });
 
-    test('Handles failed login with error message and error state', () async {
-      final success = await authProvider.login('test@cardsage.app', 'wrong');
-      expect(success, isFalse);
-      expect(authProvider.state, ViewState.error);
-      expect(authProvider.errorMessage, 'Invalid email or password');
+    test('failed login keeps user signed out and exposes the error', () async {
+      auth.restore();
+      final ok = await auth.login('test@creditvance.app', 'wrong');
+      expect(ok, isFalse);
+      expect(auth.status, AuthStatus.signedOut);
+      expect(auth.errorMessage, 'Incorrect email or password');
     });
 
-    test('Handles registration and updates state', () async {
-      final success = await authProvider.register('new@cardsage.app', 'Secret123!', 'New Member');
-      expect(success, isTrue);
-      expect(authProvider.isAuthenticated, isTrue);
-      expect(authProvider.user?.fullName, 'New Member');
+    test('register signs in with the new name', () async {
+      final ok = await auth.register('new@creditvance.app', 'Secret123!', 'New Member');
+      expect(ok, isTrue);
+      expect(auth.user?.fullName, 'New Member');
+    });
+
+    test('guest mode and exiting guest mode', () async {
+      await auth.continueAsGuest();
+      expect(auth.status, AuthStatus.guest);
+      expect(auth.isAuthenticated, isTrue);
+      await auth.exitGuest();
+      expect(auth.status, AuthStatus.signedOut);
+    });
+
+    test('session expiry signs out a signed-in user only', () async {
+      await auth.login('x@y.co', 'ok');
+      auth.handleSessionExpired();
+      await Future<void>.delayed(Duration.zero);
+      expect(auth.status, AuthStatus.signedOut);
+      expect(auth.errorMessage, contains('expired'));
+
+      await auth.continueAsGuest();
+      auth.handleSessionExpired();
+      expect(auth.status, AuthStatus.guest);
+    });
+
+    test('validators', () {
+      expect(AuthRepositoryImpl.validateEmail('bad'), isNotNull);
+      expect(AuthRepositoryImpl.validateEmail('ok@mail.com'), isNull);
+      expect(AuthRepositoryImpl.validatePassword('short', isSignUp: true), isNotNull);
+      expect(AuthRepositoryImpl.validatePassword('longenough', isSignUp: true), isNull);
     });
   });
 }

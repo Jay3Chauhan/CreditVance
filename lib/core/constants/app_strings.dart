@@ -1,55 +1,56 @@
-/// Centralized UI strings and labels for CardSage.
+/// Centralized product copy for CreditVance.
 class AppStrings {
   const AppStrings._();
 
-  static const String appName = 'CardSage';
-  static const String appTagline = 'Smart Credit Card Advisor & Vault';
+  static const String appName = 'CreditVance';
+  static const String appTagline = 'The right card, every checkout.';
+  static const String appVersion = '2.0.0';
 
-  // Navigation Items
-  static const String navAdvisor = 'Advisor';
-  static const String navWallet = 'Vault';
-  static const String navCatalog = 'Explore';
-  static const String navCalculator = 'Calculator';
+  // Navigation
+  static const String navHome = 'Home';
+  static const String navWallet = 'Wallet';
+  static const String navExplore = 'Explore';
+  static const String navRewards = 'Rewards';
   static const String navProfile = 'Account';
 
-  // Advisor
-  static const String advisorTitle = 'Smart Advisor';
-  static const String advisorSubtitle = 'Maximize your returns at checkout';
-  static const String selectCategory = 'Where are you spending?';
-  static const String spendAmount = 'Transaction Amount';
-  static const String internationalSpend = 'International Transaction (Forex)';
-  static const String recommendCardCta = 'Find Best Card';
-  static const String topRecommendation = 'Top Recommended Card';
-  static const String estimatedReturn = 'Estimated Return';
+  // Home / advisor
+  static const String homeQuestion = 'Where are you paying?';
+  static const String homeAmount = 'Amount';
+  static const String homeInternational = 'Paying abroad';
+  static const String homeInternationalHint = 'Accounts for forex markup';
+  static const String homeBestCard = 'Best card for this';
+  static const String homeAlternatives = 'Other options';
+  static const String homeInsights = 'Smart tips';
+  static const String homeBenchmark = 'Best in market';
 
-  // Vault / Wallet
-  static const String walletTitle = 'Zero-Knowledge Vault';
-  static const String walletSubtitle = 'Hardware-encrypted on your device';
-  static const String addCardCta = 'Add New Card';
-  static const String tapToReveal = 'Tap to unlock card numbers';
-  static const String copyCardNumber = 'Copy Card Number';
-  static const String cardCopiedToast = 'Card copied! Auto-clears in 30s';
-  static const String biometricReason = 'Authenticate to access card vault';
+  // Wallet
+  static const String walletTitle = 'Wallet';
+  static const String walletEmptyTitle = 'Your wallet is empty';
+  static const String walletEmptyBody =
+      'Add a card once and copy its number at checkout with a fingerprint — stored only in your phone\'s secure hardware.';
+  static const String walletAddFirst = 'Add your first card';
+  static const String walletLoadSamples = 'Try with sample cards';
+  static const String copyNumber = 'Copy number';
+  static const String reveal = 'Reveal';
+  static const String hide = 'Hide';
+  static const String biometricCopyReason = 'Confirm it\'s you to copy the card number';
+  static const String biometricRevealReason = 'Confirm it\'s you to view card details';
+  static const String biometricUnlockReason = 'Unlock CreditVance';
 
-  // Catalog
-  static const String catalogTitle = 'Cards Catalog';
-  static const String catalogSubtitle = 'Explore 731+ Indian Credit Cards';
-  static const String searchPlaceholder = 'Search cards, banks or perks...';
-  static const String filterByBank = 'Bank';
-  static const String filterByNetwork = 'Network';
-  static const String filterByFee = 'Annual Fee';
-  static const String sortBy = 'Sort By';
+  // Explore
+  static const String exploreTitle = 'Explore';
+  static const String exploreSearchHint = 'Search cards or banks';
 
-  // Calculator
-  static const String calculatorTitle = 'Reward Calculator';
-  static const String calculatorSubtitle = 'Simulate annual cashback & reward points';
-  static const String annualSpend = 'Monthly Spend by Category';
-  static const String calculateCta = 'Calculate Rewards';
+  // Rewards
+  static const String rewardsTitle = 'Rewards';
+  static const String rewardsSubtitle = 'See what a card earns on your monthly spends';
 
-  // Errors & States
+  // Security copy
+  static const String zeroKnowledgeNote =
+      'Card number and CVV are encrypted in your phone\'s secure hardware (Android Keystore / Secure Enclave). They never leave this device.';
+
+  // Errors
   static const String generalError = 'Something went wrong. Please try again.';
-  static const String offlineMessage = 'You are currently offline. Showing cached cards.';
-  static const String retry = 'Retry';
-  static const String emptyWallet = 'No cards added to your vault yet.';
-  static const String emptyWalletPrompt = 'Add your credit cards to receive personalized recommendations and secure one-tap copy at checkout.';
+  static const String offlineMessage = 'You\'re offline. Showing saved data.';
+  static const String retry = 'Try again';
 }

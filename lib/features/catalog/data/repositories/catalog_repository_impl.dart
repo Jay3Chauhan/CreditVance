@@ -1,10 +1,12 @@
 import 'dart:convert';
+
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/data/mock_seed_data.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_result.dart';
 import '../../../../core/storage/local_cache_service.dart';
 import '../../domain/entities/bank.dart';
+import '../../domain/entities/card_tab.dart';
 import '../../domain/entities/catalog_card.dart';
 import '../../domain/entities/category.dart';
 import '../../domain/repositories/catalog_repository.dart';
@@ -12,7 +14,8 @@ import '../models/bank_model.dart';
 import '../models/catalog_card_model.dart';
 import '../models/category_model.dart';
 
-/// Implementation of CatalogRepository with Cache-First strategy and Mock fallback
+/// Catalog repository: server pagination, TTL cache for the default first
+/// page, and an offline fallback over the bundled sample catalog.
 class CatalogRepositoryImpl implements CatalogRepository {
   final ApiClient _apiClient;
   final LocalCacheService _cacheService;
@@ -24,94 +27,104 @@ class CatalogRepositoryImpl implements CatalogRepository {
         _cacheService = cacheService;
 
   @override
-  Future<ApiResult<List<CatalogCard>>> getCards({
-    String? search,
-    String? bankSlug,
-    String? network,
-    String? feeType,
-    bool? isPopular,
-    String? sortBy,
+  Future<ApiResult<PagedResult<CatalogCard>>> getCards({
+    CatalogQuery query = const CatalogQuery(),
     int page = 1,
-    int limit = 20,
+    int limit = ApiEndpoints.pageSize,
     bool forceRefresh = false,
   }) async {
-    final query = <String, dynamic>{
+    final cacheable = page == 1 && query.isDefault;
+
+    if (cacheable && !forceRefresh) {
+      final cached = _readCachedFirstPage();
+      if (cached != null) return ApiSuccess(cached);
+    }
+
+    final params = <String, dynamic>{
       'page': page,
       'limit': limit,
+      'sort_by': query.sortBy,
+      if (query.search != null && query.search!.isNotEmpty) 'search': query.search,
+      'bank_slug': ?query.bankSlug,
+      'network': ?query.network,
+      'fee_type': ?query.feeType,
+      if (query.popularOnly) 'is_popular': true,
     };
-    if (search != null && search.isNotEmpty) query['search'] = search;
-    if (bankSlug != null && bankSlug.isNotEmpty) query['bank_slug'] = bankSlug;
-    if (network != null && network.isNotEmpty) query['network'] = network;
-    if (feeType != null && feeType.isNotEmpty) query['fee_type'] = feeType;
-    if (isPopular != null) query['is_popular'] = isPopular;
-    if (sortBy != null && sortBy.isNotEmpty) query['sort_by'] = sortBy;
-
-    // Check local cache if not forced refresh and on first page
-    if (!forceRefresh && page == 1 && search == null && bankSlug == null) {
-      final cachedJson = _cacheService.getCatalogCache();
-      if (cachedJson != null) {
-        try {
-          final List decoded = jsonDecode(cachedJson) as List;
-          final cachedCards = decoded.map((e) => CatalogCardModel.fromJson(e)).toList();
-          // Ensure cached data contains valid card names before serving
-          if (cachedCards.isNotEmpty &&
-              cachedCards.every((c) => c.name.trim().isNotEmpty && c.name != 'Credit Card')) {
-            return ApiSuccess(cachedCards);
-          }
-        } catch (_) {}
-      }
-    }
 
     final result = await _apiClient.get<List<CatalogCard>>(
       path: ApiEndpoints.cards,
-      queryParameters: query,
+      queryParameters: params,
       fromJson: (data) {
-        final list = (data is List) ? data : (data['items'] as List? ?? []);
+        final list = data is List ? data : (data?['items'] as List? ?? const []);
         return list.map((e) => CatalogCardModel.fromJson(e as Map<String, dynamic>)).toList();
       },
     );
 
-    if (result.isSuccess) {
-      if (page == 1 && search == null && bankSlug == null) {
-        final rawList = (result as ApiSuccess<List<CatalogCard>>)
-            .data
-            .map((c) => (c as CatalogCardModel).toJson())
-            .toList();
-        _cacheService.setCatalogCache(jsonEncode(rawList));
-      }
-      return result;
+    if (result case ApiSuccess(:final data, :final meta)) {
+      final paged = PagedResult.fromMeta(data, meta, page: page, limit: limit);
+      if (cacheable) _writeCachedFirstPage(paged);
+      return ApiSuccess(paged);
     }
 
-    // Offline / Mock fallback filter
-    var filtered = List<CatalogCardModel>.from(MockSeedData.sampleCards);
-    if (search != null && search.isNotEmpty) {
-      filtered = filtered
-          .where((c) =>
-              c.name.toLowerCase().contains(search.toLowerCase()) ||
-              c.bankName.toLowerCase().contains(search.toLowerCase()) ||
-              c.keyPerks.any((p) => p.toLowerCase().contains(search.toLowerCase())))
+    final failure = result as ApiFailure<List<CatalogCard>>;
+    if (page == 1) {
+      final cached = query.isDefault ? _readCachedFirstPage(ignoreTtl: true) : null;
+      if (cached != null) return ApiSuccess(cached);
+      return ApiSuccess(_offlineFilter(query));
+    }
+    return ApiFailure(failure.message, statusCode: failure.statusCode, isNetworkError: failure.isNetworkError);
+  }
+
+  PagedResult<CatalogCard>? _readCachedFirstPage({bool ignoreTtl = false}) {
+    final raw = _cacheService.getCatalogCache(ignoreTtl: ignoreTtl);
+    if (raw == null) return null;
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final items = (map['items'] as List)
+          .map((e) => CatalogCardModel.fromJson(e as Map<String, dynamic>))
           .toList();
+      if (items.isEmpty) return null;
+      return PagedResult(
+        items: items,
+        page: 1,
+        total: (map['total'] as num?)?.toInt() ?? items.length,
+        hasNext: map['has_next'] as bool? ?? true,
+        fromCache: true,
+      );
+    } catch (_) {
+      return null;
     }
-    if (bankSlug != null && bankSlug.isNotEmpty) {
-      filtered = filtered.where((c) => c.bankSlug == bankSlug).toList();
-    }
-    if (network != null && network.isNotEmpty) {
-      filtered = filtered.where((c) => c.network.toLowerCase().contains(network.toLowerCase())).toList();
-    }
-    if (isPopular == true) {
-      filtered = filtered.where((c) => c.isPopular).toList();
-    }
-    if (feeType == 'free') {
-      filtered = filtered.where((c) => c.annualFee == 0).toList();
-    } else if (feeType == 'lt1k') {
-      filtered = filtered.where((c) => c.annualFee > 0 && c.annualFee <= 1000).toList();
-    } else if (feeType == '1k5k') {
-      filtered = filtered.where((c) => c.annualFee > 1000 && c.annualFee <= 5000).toList();
-    } else if (feeType == 'gt5k') {
-      filtered = filtered.where((c) => c.annualFee > 5000).toList();
-    }
+  }
 
-    return ApiSuccess(filtered);
+  void _writeCachedFirstPage(PagedResult<CatalogCard> page) {
+    _cacheService.setCatalogCache(jsonEncode({
+      'items': page.items.map((c) => CatalogCardModel.fromEntity(c).toJson()).toList(),
+      'total': page.total,
+      'has_next': page.hasNext,
+    }));
+  }
+
+  PagedResult<CatalogCard> _offlineFilter(CatalogQuery query) {
+    Iterable<CatalogCard> list = MockSeedData.sampleCards;
+    final s = query.search?.toLowerCase();
+    if (s != null && s.isNotEmpty) {
+      list = list.where((c) => c.name.toLowerCase().contains(s) || c.bankName.toLowerCase().contains(s));
+    }
+    if (query.network != null) {
+      list = list.where((c) => CatalogCardModel.networkCode(c.network) == query.network);
+    }
+    switch (query.feeType) {
+      case 'free':
+        list = list.where((c) => c.annualFee == 0);
+      case 'lt1k':
+        list = list.where((c) => c.annualFee > 0 && c.annualFee <= 1000);
+      case '1k5k':
+        list = list.where((c) => c.annualFee > 1000 && c.annualFee <= 5000);
+      case 'gt5k':
+        list = list.where((c) => c.annualFee > 5000);
+    }
+    final items = list.toList();
+    return PagedResult(items: items, page: 1, total: items.length, hasNext: false, fromCache: true);
   }
 
   @override
@@ -120,15 +133,18 @@ class CatalogRepositoryImpl implements CatalogRepository {
       path: ApiEndpoints.cardDetail(slug),
       fromJson: (data) => CatalogCardModel.fromJson(data as Map<String, dynamic>),
     );
-
     if (result.isSuccess) return result;
+    final mock = MockSeedData.sampleCards.where((c) => c.slug == slug).firstOrNull;
+    if (mock != null) return ApiSuccess(mock);
+    return result;
+  }
 
-    // Fallback to mock cards
-    final mock = MockSeedData.sampleCards.firstWhere(
-      (c) => c.slug == slug,
-      orElse: () => MockSeedData.sampleCards.first,
+  @override
+  Future<ApiResult<CardTab>> getCardTab(String slug, String tabName) {
+    return _apiClient.get<CardTab>(
+      path: ApiEndpoints.cardTab(slug, tabName),
+      fromJson: (data) => CardTab.fromJson(tabName, data as Map<String, dynamic>),
     );
-    return ApiSuccess(mock);
   }
 
   @override
@@ -137,8 +153,8 @@ class CatalogRepositoryImpl implements CatalogRepository {
       final cached = _cacheService.getBanksCache();
       if (cached != null) {
         try {
-          final List decoded = jsonDecode(cached) as List;
-          return ApiSuccess(decoded.map((e) => BankModel.fromJson(e)).toList());
+          final decoded = jsonDecode(cached) as List;
+          return ApiSuccess(decoded.map((e) => BankModel.fromJson(e as Map<String, dynamic>)).toList());
         } catch (_) {}
       }
     }
@@ -148,15 +164,10 @@ class CatalogRepositoryImpl implements CatalogRepository {
       fromJson: (data) => (data as List).map((e) => BankModel.fromJson(e as Map<String, dynamic>)).toList(),
     );
 
-    if (result.isSuccess) {
-      final list = (result as ApiSuccess<List<Bank>>)
-          .data
-          .map((b) => (b as BankModel).toJson())
-          .toList();
-      _cacheService.setBanksCache(jsonEncode(list));
+    if (result case ApiSuccess(:final data)) {
+      _cacheService.setBanksCache(jsonEncode(data.map((b) => (b as BankModel).toJson()).toList()));
       return result;
     }
-
     return const ApiSuccess(MockSeedData.banks);
   }
 
@@ -166,8 +177,8 @@ class CatalogRepositoryImpl implements CatalogRepository {
       final cached = _cacheService.getCategoriesCache();
       if (cached != null) {
         try {
-          final List decoded = jsonDecode(cached) as List;
-          return ApiSuccess(decoded.map((e) => CategoryModel.fromJson(e)).toList());
+          final decoded = jsonDecode(cached) as List;
+          return ApiSuccess(decoded.map((e) => CategoryModel.fromJson(e as Map<String, dynamic>)).toList());
         } catch (_) {}
       }
     }
@@ -177,15 +188,13 @@ class CatalogRepositoryImpl implements CatalogRepository {
       fromJson: (data) => (data as List).map((e) => CategoryModel.fromJson(e as Map<String, dynamic>)).toList(),
     );
 
-    if (result.isSuccess) {
-      final list = (result as ApiSuccess<List<SpendCategory>>)
-          .data
-          .map((c) => (c as CategoryModel).toJson())
-          .toList();
-      _cacheService.setCategoriesCache(jsonEncode(list));
+    if (result case ApiSuccess(:final data)) {
+      _cacheService.setCategoriesCache(jsonEncode(data.map((c) => (c as CategoryModel).toJson()).toList()));
       return result;
     }
-
     return const ApiSuccess(MockSeedData.categories);
   }
+
+  @override
+  Future<void> clearCache() => _cacheService.clearCatalogCaches();
 }

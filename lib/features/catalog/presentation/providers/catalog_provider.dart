@@ -1,22 +1,27 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/utils/view_state.dart';
 import '../../domain/entities/bank.dart';
 import '../../domain/entities/catalog_card.dart';
 import '../../domain/entities/category.dart';
 import '../../domain/repositories/catalog_repository.dart';
 
-/// Provider for Cards Catalog, filters, and taxonomies.
-/// Adheres strictly to Zero-setState architecture.
+/// Catalog browsing: server-side pagination, debounced search, filters and
+/// a compare tray.
 class CatalogProvider extends ChangeNotifier {
   final CatalogRepository _repository;
 
   CatalogProvider(this._repository);
 
+  static const int maxCompare = 3;
+
   ViewState _state = ViewState.initial;
   ViewState get state => _state;
 
   List<CatalogCard> _cards = [];
-  List<CatalogCard> get cards => _cards;
+  List<CatalogCard> get cards => List.unmodifiable(_cards);
 
   List<Bank> _banks = [];
   List<Bank> get banks => _banks;
@@ -27,161 +32,187 @@ class CatalogProvider extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  // Filters
-  String _searchQuery = '';
-  String get searchQuery => _searchQuery;
-
-  String? _selectedBankSlug;
-  String? get selectedBankSlug => _selectedBankSlug;
-
-  String? _selectedNetwork;
-  String? get selectedNetwork => _selectedNetwork;
-
-  String? _selectedFeeType;
-  String? get selectedFeeType => _selectedFeeType;
-
-  String _sortBy = 'popular';
-  String get sortBy => _sortBy;
+  CatalogQuery _query = const CatalogQuery();
+  CatalogQuery get query => _query;
+  bool get hasActiveFilters => !_query.isDefault;
 
   int _page = 1;
-  int get page => _page;
-  bool _hasNextPage = true;
-  bool get hasNextPage => _hasNextPage;
+  int _total = 0;
+  int get total => _total;
+  bool _hasNext = false;
+  bool get hasNext => _hasNext;
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
+  String? _loadMoreError;
+  String? get loadMoreError => _loadMoreError;
+  bool _fromCache = false;
+  bool get isShowingCached => _fromCache;
 
-  bool get hasActiveFilters =>
-      _searchQuery.isNotEmpty ||
-      _selectedBankSlug != null ||
-      _selectedNetwork != null ||
-      _selectedFeeType != null ||
-      _sortBy != 'popular';
+  final List<CatalogCard> _compare = [];
+  List<CatalogCard> get compareList => List.unmodifiable(_compare);
+  bool isInCompare(int id) => _compare.any((c) => c.id == id);
 
-  /// Initial load of catalog, banks, and categories
+  Timer? _debounce;
+  int _requestSeq = 0;
+
   Future<void> init() async {
     if (_state != ViewState.initial) return;
     _setState(ViewState.loading);
+    await Future.wait([_loadTaxonomies(), _fetchFirstPage()]);
+  }
 
-    // Parallel load of taxonomies and first page of cards
-    await Future.wait([
-      _loadTaxonomies(),
-      _fetchCards(page: 1, reset: true),
+  Future<void> _loadTaxonomies({bool force = false}) async {
+    final results = await Future.wait([
+      _repository.getBanks(forceRefresh: force),
+      _repository.getCategories(forceRefresh: force),
     ]);
+    _banks = (results[0].dataOrNull as List<Bank>?) ?? _banks;
+    _categories = (results[1].dataOrNull as List<SpendCategory>?) ?? _categories;
+    notifyListeners();
   }
 
-  Future<void> _loadTaxonomies() async {
-    final banksResult = await _repository.getBanks();
-    if (banksResult.isSuccess) {
-      _banks = banksResult.dataOrNull ?? [];
-    }
-
-    final catResult = await _repository.getCategories();
-    if (catResult.isSuccess) {
-      _categories = catResult.dataOrNull ?? [];
-    }
-  }
-
-  /// Fetches cards matching current active filters
-  Future<void> _fetchCards({int page = 1, bool reset = false, bool isRefresh = false}) async {
-    if (reset) {
-      _page = 1;
-    }
-
-    final result = await _repository.getCards(
-      search: _searchQuery.isEmpty ? null : _searchQuery,
-      bankSlug: _selectedBankSlug,
-      network: _selectedNetwork,
-      feeType: _selectedFeeType,
-      sortBy: _sortBy,
-      page: page,
-      forceRefresh: isRefresh,
-    );
+  Future<void> _fetchFirstPage({bool force = false}) async {
+    final seq = ++_requestSeq;
+    final result = await _repository.getCards(query: _query, page: 1, forceRefresh: force);
+    if (seq != _requestSeq) return; // A newer query superseded this one.
 
     result.when(
-      success: (cardsList) {
-        if (reset) {
-          _cards = cardsList;
-        } else {
-          _cards.addAll(cardsList);
-        }
-        _page = page;
-        _hasNextPage = cardsList.length >= 20;
+      success: (paged) {
+        _cards = paged.items;
+        _page = 1;
+        _total = paged.total;
+        _hasNext = paged.hasNext;
+        _fromCache = paged.fromCache;
         _errorMessage = null;
-
-        if (_cards.isEmpty) {
-          _setState(ViewState.empty);
-        } else {
-          _setState(ViewState.loaded);
-        }
+        _loadMoreError = null;
+        _setState(_cards.isEmpty ? ViewState.empty : ViewState.loaded);
       },
-      failure: (message, statusCode) {
+      failure: (message, _) {
         _errorMessage = message;
-        if (_cards.isEmpty) {
-          _setState(ViewState.error);
-        } else {
-          _setState(ViewState.loaded);
-        }
+        _setState(_cards.isEmpty ? ViewState.error : ViewState.loaded);
       },
     );
   }
 
-  /// Pull-to-refresh
-  Future<void> refresh() async {
-    _setState(ViewState.refreshing);
-    await _fetchCards(page: 1, reset: true, isRefresh: true);
-  }
-
-  /// Update search query
-  void setSearchQuery(String query) {
-    if (_searchQuery == query) return;
-    _searchQuery = query;
-    _setState(ViewState.loading);
-    _fetchCards(page: 1, reset: true);
-  }
-
-  /// Filter by Bank
-  void setBankFilter(String? bankSlug) {
-    if (_selectedBankSlug == bankSlug) return;
-    _selectedBankSlug = bankSlug;
-    _setState(ViewState.loading);
-    _fetchCards(page: 1, reset: true);
-  }
-
-  /// Filter by Network (Visa, Mastercard, Amex, RuPay)
-  void setNetworkFilter(String? network) {
-    if (_selectedNetwork == network) return;
-    _selectedNetwork = network;
-    _setState(ViewState.loading);
-    _fetchCards(page: 1, reset: true);
-  }
-
-  /// Filter by Fee Tier (free, lt1k, 1k5k, gt5k)
-  void setFeeFilter(String? feeType) {
-    if (_selectedFeeType == feeType) return;
-    _selectedFeeType = feeType;
-    _setState(ViewState.loading);
-    _fetchCards(page: 1, reset: true);
-  }
-
-  /// Change Sort order
-  void setSortBy(String sort) {
-    if (_sortBy == sort) return;
-    _sortBy = sort;
-    _setState(ViewState.loading);
-    _fetchCards(page: 1, reset: true);
-  }
-
-  /// Clear all active filters
-  void clearFilters() {
-    _searchQuery = '';
-    _selectedBankSlug = null;
-    _selectedNetwork = null;
-    _selectedFeeType = null;
-    _sortBy = 'popular';
-    _setState(ViewState.loading);
-    _fetchCards(page: 1, reset: true);
-  }
-
-  void _setState(ViewState newState) {
-    _state = newState;
+  /// Loads the next page. Safe to call repeatedly from scroll listeners.
+  Future<void> loadMore() async {
+    if (!_hasNext || _isLoadingMore || _state.isLoading) return;
+    _isLoadingMore = true;
+    _loadMoreError = null;
     notifyListeners();
+
+    final seq = _requestSeq;
+    final result = await _repository.getCards(query: _query, page: _page + 1);
+    if (seq != _requestSeq) {
+      _isLoadingMore = false;
+      return;
+    }
+
+    result.when(
+      success: (paged) {
+        final known = _cards.map((c) => c.id).toSet();
+        _cards = [..._cards, ...paged.items.where((c) => !known.contains(c.id))];
+        _page = paged.page;
+        _total = paged.total;
+        _hasNext = paged.hasNext;
+      },
+      failure: (message, _) => _loadMoreError = message,
+    );
+    _isLoadingMore = false;
+    notifyListeners();
+  }
+
+  Future<void> refresh() async {
+    _setState(_cards.isEmpty ? ViewState.loading : ViewState.refreshing);
+    await Future.wait([_loadTaxonomies(force: true), _fetchFirstPage(force: true)]);
+  }
+
+  void _applyQuery(CatalogQuery next, {bool debounce = false}) {
+    _query = next;
+    _debounce?.cancel();
+    if (debounce) {
+      notifyListeners();
+      _debounce = Timer(AppDimensions.debounce, () {
+        _setState(ViewState.loading);
+        _fetchFirstPage();
+      });
+    } else {
+      _setState(ViewState.loading);
+      _fetchFirstPage();
+    }
+  }
+
+  void setSearchQuery(String value) {
+    final trimmed = value.trim();
+    if ((_query.search ?? '') == trimmed) return;
+    _applyQuery(_query.copyWith(search: trimmed), debounce: true);
+  }
+
+  void setBankFilter(String? slug) {
+    if (_query.bankSlug == slug) return;
+    _applyQuery(_query.copyWith(bankSlug: slug));
+  }
+
+  void setNetworkFilter(String? code) {
+    if (_query.network == code) return;
+    _applyQuery(_query.copyWith(network: code));
+  }
+
+  void setFeeFilter(String? feeType) {
+    if (_query.feeType == feeType) return;
+    _applyQuery(_query.copyWith(feeType: feeType));
+  }
+
+  void setPopularOnly(bool value) {
+    if (_query.popularOnly == value) return;
+    _applyQuery(_query.copyWith(popularOnly: value));
+  }
+
+  void setSortBy(String sort) {
+    if (_query.sortBy == sort) return;
+    _applyQuery(_query.copyWith(sortBy: sort));
+  }
+
+  /// Applies several filters at once (from the filter sheet).
+  void applyFilters(CatalogQuery next) {
+    _applyQuery(next.copyWith(search: _query.search ?? ''));
+  }
+
+  void clearFilters({bool keepSearch = true}) {
+    _applyQuery(CatalogQuery(search: keepSearch ? _query.search : null));
+  }
+
+  /// Returns false when the compare tray is full.
+  bool toggleCompare(CatalogCard card) {
+    final idx = _compare.indexWhere((c) => c.id == card.id);
+    if (idx != -1) {
+      _compare.removeAt(idx);
+    } else {
+      if (_compare.length >= maxCompare) return false;
+      _compare.add(card);
+    }
+    notifyListeners();
+    return true;
+  }
+
+  void clearCompare() {
+    _compare.clear();
+    notifyListeners();
+  }
+
+  Future<void> clearCache() async {
+    await _repository.clearCache();
+    await refresh();
+  }
+
+  void _setState(ViewState s) {
+    _state = s;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 }

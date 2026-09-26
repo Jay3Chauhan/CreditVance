@@ -1,11 +1,13 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/haptics_helper.dart';
+import '../../../../core/widgets/app_surface.dart';
 import '../../../advisor/presentation/screens/advisor_screen.dart';
 import '../../../auth/presentation/screens/profile_screen.dart';
 import '../../../calculator/presentation/screens/calculator_screen.dart';
@@ -13,130 +15,162 @@ import '../../../catalog/presentation/screens/catalog_screen.dart';
 import '../../../wallet/presentation/screens/wallet_screen.dart';
 import '../providers/navigation_provider.dart';
 
-/// Main Application Shell hosting the Luxury Bottom Navigation Bar and Feature Screens.
-/// Strictly Zero setState: Uses Provider Consumers.
-/// Custom luxury bottom nav replaces Material3 NavigationBar for premium fintech aesthetic.
+class _Dest {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  const _Dest(this.icon, this.activeIcon, this.label);
+}
+
+const _destinations = [
+  _Dest(AppIcons.navHome, AppIcons.navHomeActive, AppStrings.navHome),
+  _Dest(AppIcons.navWallet, AppIcons.navWalletActive, AppStrings.navWallet),
+  _Dest(AppIcons.navExplore, AppIcons.navExploreActive, AppStrings.navExplore),
+  _Dest(AppIcons.navRewards, AppIcons.navRewardsActive, AppStrings.navRewards),
+  _Dest(AppIcons.navProfile, AppIcons.navProfileActive, AppStrings.navProfile),
+];
+
+/// Adaptive shell: floating bottom bar on phones, navigation rail on
+/// tablets / desktop.
 class MainShellScreen extends StatelessWidget {
   const MainShellScreen({super.key});
 
-  static const List<Widget> _screens = [
-    AdvisorScreen(),
-    WalletScreen(),
-    CatalogScreen(),
-    CalculatorScreen(),
-    ProfileScreen(),
-  ];
-
-  static const _navItems = [
-    _NavItemData(
-      icon: AppIcons.navAdvisor,
-      activeIcon: AppIcons.navAdvisorActive,
-      label: AppStrings.navAdvisor,
-    ),
-    _NavItemData(
-      icon: AppIcons.navWallet,
-      activeIcon: AppIcons.navWalletActive,
-      label: AppStrings.navWallet,
-    ),
-    _NavItemData(
-      icon: AppIcons.navCatalog,
-      activeIcon: AppIcons.navCatalogActive,
-      label: AppStrings.navCatalog,
-    ),
-    _NavItemData(
-      icon: AppIcons.navCalculator,
-      activeIcon: AppIcons.navCalculatorActive,
-      label: AppStrings.navCalculator,
-    ),
-    _NavItemData(
-      icon: AppIcons.navProfile,
-      activeIcon: AppIcons.navProfileActive,
-      label: AppStrings.navProfile,
-    ),
-  ];
+  static Widget _screenFor(int index) => switch (index) {
+        0 => const AdvisorScreen(),
+        1 => const WalletScreen(),
+        2 => const CatalogScreen(),
+        3 => const CalculatorScreen(),
+        _ => const ProfileScreen(),
+      };
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<NavigationProvider>(
-      builder: (context, nav, _) {
-        final currentIdx = nav.currentIndex;
+    final nav = context.watch<NavigationProvider>();
+    final size = context.windowSize;
+    final useRail = size != WindowSize.compact;
+    final extendedRail = size == WindowSize.expanded;
 
-        return Scaffold(
-          // IndexedStack preserves state across tab switches
-          body: IndexedStack(
-            index: currentIdx,
-            children: _screens,
-          ),
-          bottomNavigationBar: _LuxuryNavBar(
-            currentIndex: currentIdx,
-            items: _navItems,
-            onTap: (idx) {
-              HapticsHelper.selection();
-              nav.setIndex(idx);
-            },
-          ),
-        );
+    void select(int i) {
+      HapticsHelper.selection();
+      nav.setIndex(i);
+    }
+
+    final stack = _FadeIndexedStack(
+      index: nav.currentIndex,
+      children: List.generate(
+        _destinations.length,
+        (i) => nav.isVisited(i) ? _screenFor(i) : const SizedBox.shrink(),
+      ),
+    );
+
+    return PopScope(
+      canPop: nav.currentIndex == NavigationProvider.home,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) nav.setIndex(NavigationProvider.home);
       },
+      child: Scaffold(
+        extendBody: true,
+        body: useRail
+            ? Row(
+                children: [
+                  _Rail(index: nav.currentIndex, extended: extendedRail, onSelect: select),
+                  VerticalDivider(width: 1, thickness: 1, color: context.colors.border),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, box) {
+                        final mq = MediaQuery.of(context);
+                        return MediaQuery(
+                          data: mq.copyWith(size: Size(box.maxWidth, mq.size.height)),
+                          child: stack,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              )
+            : stack,
+        bottomNavigationBar: useRail ? null : _BottomBar(index: nav.currentIndex, onSelect: select),
+      ),
     );
   }
 }
 
-/// Immutable nav item data.
-class _NavItemData {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
+/// IndexedStack that cross-fades between children while keeping state.
+class _FadeIndexedStack extends StatelessWidget {
+  final int index;
+  final List<Widget> children;
 
-  const _NavItemData({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-  });
-}
-
-/// Custom luxury bottom navigation bar.
-/// Features: animated gold underline indicator, icon scale spring, label weight transition.
-/// Zero setState: all state driven by parent's currentIndex.
-class _LuxuryNavBar extends StatelessWidget {
-  final int currentIndex;
-  final List<_NavItemData> items;
-  final ValueChanged<int> onTap;
-
-  const _LuxuryNavBar({
-    required this.currentIndex,
-    required this.items,
-    required this.onTap,
-  });
+  const _FadeIndexedStack({required this.index, required this.children});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surfacePrimary,
-        border: Border(
-          top: BorderSide(color: AppColors.borderSubtle, width: 1.0),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            children: items.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final item = entry.value;
-              final isSelected = idx == currentIndex;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        for (var i = 0; i < children.length; i++)
+          IgnorePointer(
+            ignoring: i != index,
+            child: TickerMode(
+              enabled: i == index,
+              child: AnimatedOpacity(
+                opacity: i == index ? 1 : 0,
+                duration: AppDimensions.fastAnim,
+                curve: Curves.easeOut,
+                child: children[i],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
 
-              return Expanded(
-                child: _LuxuryNavItem(
-                  icon: item.icon,
-                  activeIcon: item.activeIcon,
-                  label: item.label,
-                  isSelected: isSelected,
-                  onTap: () => onTap(idx),
+class _BottomBar extends StatelessWidget {
+  final int index;
+  final ValueChanged<int> onSelect;
+
+  const _BottomBar({required this.index, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: ClipRRect(
+              borderRadius: AppDimensions.roundedXl,
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  height: 62,
+                  decoration: BoxDecoration(
+                    color: c.surface.withValues(alpha: c.isDark ? 0.82 : 0.9),
+                    borderRadius: AppDimensions.roundedXl,
+                    border: Border.all(color: c.border),
+                    boxShadow: [BoxShadow(color: c.shadow, blurRadius: 24, offset: const Offset(0, 8))],
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < _destinations.length; i++)
+                        Expanded(
+                          child: _BarItem(
+                            dest: _destinations[i],
+                            selected: i == index,
+                            onTap: () => onSelect(i),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              );
-            }).toList(),
+              ),
+            ),
           ),
         ),
       ),
@@ -144,87 +178,97 @@ class _LuxuryNavBar extends StatelessWidget {
   }
 }
 
-/// Individual nav bar item with animated icon scale, label weight, and gold underline dot.
-/// Zero setState: all animations driven by [isSelected] prop.
-class _LuxuryNavItem extends StatelessWidget {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final bool isSelected;
+class _BarItem extends StatelessWidget {
+  final _Dest dest;
+  final bool selected;
   final VoidCallback onTap;
 
-  const _LuxuryNavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
+  const _BarItem({required this.dest, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Icon with scale animation
-          AnimatedScale(
-            scale: isSelected ? 1.18 : 1.0,
-            duration: AppDimensions.springAnim,
-            curve: Curves.elasticOut,
-            child: TweenAnimationBuilder<Color?>(
-              tween: ColorTween(
-                begin: isSelected ? AppColors.textSecondary : AppColors.gold,
-                end: isSelected ? AppColors.gold : AppColors.textSecondary,
+    final c = context.colors;
+    final color = selected ? c.accent : c.textTertiary;
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: dest.label,
+      child: PressableScale(
+        onTap: onTap,
+        haptic: false,
+        pressedScale: 0.9,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: AppDimensions.mediumAnim,
+              curve: Curves.easeOutCubic,
+              padding: EdgeInsets.symmetric(horizontal: selected ? 16 : 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: selected ? c.tint(c.accent, c.isDark ? 0.16 : 0.12) : Colors.transparent,
+                borderRadius: AppDimensions.roundedFull,
               ),
+              child: AnimatedSwitcher(
+                duration: AppDimensions.fastAnim,
+                child: Icon(
+                  selected ? dest.activeIcon : dest.icon,
+                  key: ValueKey(selected),
+                  size: 21,
+                  color: color,
+                ),
+              ),
+            ),
+            const SizedBox(height: 3),
+            AnimatedDefaultTextStyle(
               duration: AppDimensions.fastAnim,
-              builder: (ctx, color, _) => Icon(
-                isSelected ? activeIcon : icon,
-                color: color ?? (isSelected ? AppColors.gold : AppColors.textSecondary),
-                size: 22,
-              ),
+              style: context.text.labelSmall!
+                  .copyWith(color: color, letterSpacing: 0.1, fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+              child: Text(dest.label, maxLines: 1),
             ),
-          ),
-
-          const SizedBox(height: 4),
-
-          // Label with weight animation
-          AnimatedDefaultTextStyle(
-            style: AppTypography.labelSmall.copyWith(
-              color: isSelected ? AppColors.gold : AppColors.textTertiary,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              fontSize: isSelected ? 10.5 : 10,
-            ),
-            duration: AppDimensions.fastAnim,
-            child: Text(label),
-          ),
-
-          const SizedBox(height: 3),
-
-          // Gold underline dot indicator
-          AnimatedContainer(
-            duration: AppDimensions.fastAnim,
-            curve: Curves.easeOutCubic,
-            width: isSelected ? 18 : 0,
-            height: 2.5,
-            decoration: BoxDecoration(
-              color: AppColors.gold,
-              borderRadius: AppDimensions.roundedFull,
-              boxShadow: isSelected
-                  ? const [
-                      BoxShadow(
-                        color: Color(0x80DFB76C), // AppColors.gold with 0.5 opacity
-                        blurRadius: 6,
-                        spreadRadius: 1,
-                      ),
-                    ]
-                  : const [],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _Rail extends StatelessWidget {
+  final int index;
+  final bool extended;
+  final ValueChanged<int> onSelect;
+
+  const _Rail({required this.index, required this.extended, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return NavigationRail(
+      selectedIndex: index,
+      extended: extended,
+      minExtendedWidth: 200,
+      onDestinationSelected: onSelect,
+      labelType: extended ? NavigationRailLabelType.none : NavigationRailLabelType.all,
+      leading: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppDimensions.p16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconHalo(icon: AppIcons.keyhole, size: 34, iconSize: 16, circle: true, color: c.accent),
+            if (extended) ...[
+              const SizedBox(width: 10),
+              Text(AppStrings.appName, style: context.text.titleMedium),
+            ],
+          ],
+        ),
+      ),
+      destinations: [
+        for (final d in _destinations)
+          NavigationRailDestination(
+            icon: Icon(d.icon, size: 21),
+            selectedIcon: Icon(d.activeIcon, size: 21),
+            label: Text(d.label),
+          ),
+      ],
     );
   }
 }

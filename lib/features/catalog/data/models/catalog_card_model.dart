@@ -1,10 +1,11 @@
 import '../../domain/entities/catalog_card.dart';
 
-/// DTO for CatalogCard supporting both FastAPI backend schemas and local mock fallbacks
+/// DTO for [CatalogCard] (FastAPI schema + local fallbacks).
 class CatalogCardModel extends CatalogCard {
   const CatalogCardModel({
     required super.id,
     required super.name,
+    super.displayName,
     required super.slug,
     required super.bankName,
     required super.bankSlug,
@@ -15,231 +16,239 @@ class CatalogCardModel extends CatalogCard {
     super.feeWaiverSpend,
     required super.rewardType,
     required super.baseReturnRate,
+    super.maxReturnRate,
+    super.returnRangeLabel,
+    super.forexMarkup,
     super.imageUrl,
     super.bankLogoUrl,
     super.isPopular,
+    super.isCurrentlyIssuing,
     super.rating,
+    super.overview,
     super.keyPerks,
+    super.loungeTypes,
+    super.benefitTypes,
+    super.availableTabs,
     super.tabs,
   });
 
+  static String? _nonEmpty(dynamic v) {
+    if (v is String && v.trim().isNotEmpty) return v.trim();
+    return null;
+  }
+
+  static List<String> _strings(dynamic v) => v is List ? v.map((e) => e.toString()).toList() : const [];
+
   factory CatalogCardModel.fromJson(Map<String, dynamic> json) {
-    // 1. Resolve card title/name (FastAPI sends 'title' or 'display_name')
-    final title = json['title'] as String?;
-    final displayName = json['display_name'] as String?;
-    final legacyName = json['name'] as String?;
+    final bank = json['bank'] is Map<String, dynamic> ? json['bank'] as Map<String, dynamic> : null;
 
-    String rawName = 'Credit Card';
-    if (title != null && title.trim().isNotEmpty) {
-      rawName = title.trim();
-    } else if (displayName != null && displayName.trim().isNotEmpty) {
-      rawName = displayName.trim();
-    } else if (legacyName != null && legacyName.trim().isNotEmpty) {
-      rawName = legacyName.trim();
-    }
+    final name = _nonEmpty(json['title']) ??
+        _nonEmpty(json['name']) ??
+        _nonEmpty(json['display_name']) ??
+        'Credit Card';
 
-    // 2. Resolve network (FastAPI sends 'network_type')
-    final rawNetwork = json['network_type'] as String? ??
-        json['network'] as String? ??
-        'Visa';
-    final formattedNetwork = _formatNetwork(rawNetwork);
-
-    // 3. Resolve fees (FastAPI sends 'renewal_fee' & 'joining_fee')
-    final renewalFee = (json['renewal_fee'] as num?)?.toDouble() ??
-        (json['annual_fee'] as num?)?.toDouble() ??
-        0.0;
+    final renewalFee = (json['renewal_fee'] as num?)?.toDouble() ?? (json['annual_fee'] as num?)?.toDouble() ?? 0.0;
     final joiningFee = (json['joining_fee'] as num?)?.toDouble() ?? 0.0;
-    final waiverSpend = (json['fee_waiver_spend'] as num?)?.toDouble();
+    final baseReturn =
+        (json['return_min_percent'] as num?)?.toDouble() ?? (json['base_return_rate'] as num?)?.toDouble() ?? 1.0;
+    final maxReturn = (json['return_max_percent'] as num?)?.toDouble();
 
-    // 4. Resolve return rate (FastAPI sends 'return_min_percent')
-    final baseReturn = (json['return_min_percent'] as num?)?.toDouble() ??
-        (json['base_return_rate'] as num?)?.toDouble() ??
-        2.0;
+    final loungeTypes = _strings(json['lounge_types']);
+    final benefitTypes = _strings(json['benefit_types']);
+    final overview = _nonEmpty(json['overview_text']);
 
-    // 5. Resolve card imagery & bank logo
-    final bankLogoUrl = (json['bank_logo_url'] as String?)?.isNotEmpty == true
-        ? json['bank_logo_url'] as String
-        : (json['bank']?['logo_url'] as String?)?.isNotEmpty == true
-            ? json['bank']['logo_url'] as String
-            : null;
-
-    final imageUrl = (json['card_image_url'] as String?)?.isNotEmpty == true
-        ? json['card_image_url'] as String
-        : (json['web_logo_url'] as String?)?.isNotEmpty == true
-            ? json['web_logo_url'] as String
-            : (json['image_url'] as String?)?.isNotEmpty == true
-                ? json['image_url'] as String
-                : null;
-
-    // 6. Resolve perks list
-    final List<String> perks = [];
-    if (json['key_perks'] is List && (json['key_perks'] as List).isNotEmpty) {
-      perks.addAll((json['key_perks'] as List).map((e) => e.toString()));
+    final perks = <String>[];
+    final explicitPerks = _strings(json['key_perks']);
+    if (explicitPerks.isNotEmpty) {
+      perks.addAll(explicitPerks);
     } else {
-      if (json['return_percentage_raw'] != null &&
-          json['return_percentage_raw'].toString().isNotEmpty) {
-        perks.add('Reward Rate: ${json['return_percentage_raw']}');
-      }
-
-      final benefitTypes = json['benefit_types'] as List<dynamic>? ?? [];
       for (final b in benefitTypes) {
-        final label = _formatBenefit(b.toString());
+        final label = benefitLabel(b);
         if (label != null && !perks.contains(label)) perks.add(label);
       }
-
-      final loungeTypes = json['lounge_types'] as List<dynamic>? ?? [];
       for (final l in loungeTypes) {
-        final label = _formatLounge(l.toString());
+        final label = loungeLabel(l);
         if (label != null && !perks.contains(label)) perks.add(label);
-      }
-
-      if (perks.isEmpty && json['overview_text'] != null) {
-        perks.add(json['overview_text'].toString());
       }
     }
 
-    // 7. Resolve tabs
-    final rawTabs = json['tabs'] as Map<String, dynamic>? ?? {};
-    final Map<String, CardTabDetail> parsedTabs = {};
-
-    rawTabs.forEach((key, value) {
-      if (value is Map<String, dynamic>) {
-        parsedTabs[key] = CardTabDetail(
-          title: value['title'] as String? ?? key,
-          description: value['description'] as String? ?? '',
-          bulletPoints: (value['bullet_points'] as List<dynamic>?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
-              const [],
-        );
-      }
-    });
-
-    if (parsedTabs.isEmpty) {
-      final loungeTypes = json['lounge_types'] as List<dynamic>? ?? [];
-      if (loungeTypes.isNotEmpty) {
-        parsedTabs['lounge-access'] = CardTabDetail(
-          title: 'Airport Lounge Access',
-          description: 'Complimentary airport lounge access privileges',
-          bulletPoints: loungeTypes.map((l) => _formatLounge(l.toString()) ?? l.toString()).toList(),
-        );
-      }
-
-      final benefitTypes = json['benefit_types'] as List<dynamic>? ?? [];
-      if (benefitTypes.isNotEmpty) {
-        parsedTabs['earn-categories'] = CardTabDetail(
-          title: 'Card Multipliers & Privileges',
-          description: json['overview_text'] as String? ?? 'Exclusive benefits and partner rewards',
-          bulletPoints: benefitTypes.map((b) => _formatBenefit(b.toString()) ?? b.toString()).toList(),
-        );
-      }
+    final parsedTabs = <String, CardTabDetail>{};
+    final rawTabs = json['tabs'];
+    if (rawTabs is Map<String, dynamic>) {
+      rawTabs.forEach((key, value) {
+        if (value is Map<String, dynamic>) {
+          parsedTabs[key] = CardTabDetail(
+            title: value['title'] as String? ?? key,
+            description: value['description'] as String? ?? '',
+            bulletPoints: _strings(value['bullet_points']),
+          );
+        }
+      });
     }
 
     return CatalogCardModel(
-      id: json['id'] as int? ?? 0,
-      name: rawName,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: name,
+      displayName: _nonEmpty(json['display_name']),
       slug: json['slug'] as String? ?? '',
-      bankName: (json['bank_name'] as String?)?.trim().isNotEmpty == true
-          ? (json['bank_name'] as String).trim()
-          : (json['bank']?['name'] as String?)?.trim().isNotEmpty == true
-              ? (json['bank']['name'] as String).trim()
-              : 'Bank',
-      bankSlug: json['bank_slug'] as String? ?? json['bank']?['slug'] as String? ?? '',
-      network: formattedNetwork,
-      cardType: json['card_type'] as String? ??
+      bankName: _nonEmpty(json['bank_name']) ?? _nonEmpty(bank?['name']) ?? 'Bank',
+      bankSlug: _nonEmpty(json['bank_slug']) ?? _nonEmpty(bank?['slug']) ?? '',
+      network: formatNetwork(json['network_type'] as String? ?? json['network'] as String? ?? ''),
+      cardType: _nonEmpty(json['card_type']) ??
           (renewalFee >= 10000
               ? 'Super Premium'
-              : renewalFee > 0
+              : renewalFee >= 2500
                   ? 'Premium'
-                  : 'Lifetime Free'),
+                  : renewalFee > 0
+                      ? 'Everyday'
+                      : 'Lifetime Free'),
       annualFee: renewalFee,
       joiningFee: joiningFee,
-      feeWaiverSpend: waiverSpend,
-      rewardType: json['reward_type'] as String? ?? 'Reward Points',
+      feeWaiverSpend: (json['fee_waiver_spend'] as num?)?.toDouble(),
+      rewardType: _nonEmpty(json['reward_type']) ?? 'Reward Points',
       baseReturnRate: baseReturn,
-      imageUrl: imageUrl,
-      bankLogoUrl: bankLogoUrl,
+      maxReturnRate: maxReturn,
+      returnRangeLabel: _nonEmpty(json['return_percentage_raw']),
+      forexMarkup: (json['forex_markup_percent'] as num?)?.toDouble(),
+      imageUrl: _nonEmpty(json['card_image_url']) ?? _nonEmpty(json['web_logo_url']) ?? _nonEmpty(json['image_url']),
+      bankLogoUrl: _nonEmpty(json['bank_logo_url']) ?? _nonEmpty(bank?['logo_url']),
       isPopular: json['is_popular'] as bool? ?? false,
-      rating: (json['rating'] as num?)?.toDouble() ?? 4.7,
+      isCurrentlyIssuing: json['is_currently_issuing'] as bool? ?? true,
+      rating: (json['rating'] as num?)?.toDouble() ?? 4.5,
+      overview: overview,
       keyPerks: perks,
+      loungeTypes: loungeTypes,
+      benefitTypes: benefitTypes,
+      availableTabs: _strings(json['available_tabs']),
       tabs: parsedTabs,
     );
   }
 
-  static String _formatNetwork(String network) {
+  static String formatNetwork(String network) {
     final upper = network.toUpperCase();
     if (upper.contains('VISA')) return 'Visa';
     if (upper.contains('MASTER')) return 'Mastercard';
     if (upper.contains('AMEX') || upper.contains('AMERICAN')) return 'American Express';
     if (upper.contains('RUPAY')) return 'RuPay';
     if (upper.contains('DINER')) return 'Diners Club';
+    if (network.trim().isEmpty) return 'Visa';
     return network;
   }
 
-  static String? _formatBenefit(String benefit) {
+  /// Backend network filter codes (VISA, MASTERCARD, RUPAY, AMEX).
+  static String networkCode(String network) {
+    final upper = network.toUpperCase();
+    if (upper.contains('AMEX') || upper.contains('AMERICAN')) return 'AMEX';
+    if (upper.contains('MASTER')) return 'MASTERCARD';
+    if (upper.contains('RUPAY')) return 'RUPAY';
+    if (upper.contains('DINER')) return 'DINERS';
+    return 'VISA';
+  }
+
+  static String? benefitLabel(String benefit) {
     switch (benefit) {
       case 'DINING_ORDER_IN':
-        return 'Dining discounts & Swiggy/Zomato benefits';
+        return 'Dining & food delivery offers';
       case 'TRAVEL':
-        return 'Accelerated flight & hotel booking rewards';
+        return 'Accelerated travel rewards';
       case 'MEMBERSHIP':
-        return 'Complimentary premium memberships (Taj, Marriott, EazyDiner)';
+        return 'Complimentary memberships';
       case 'CONCIERGE':
-        return '24/7 dedicated luxury concierge assistance';
+        return '24/7 concierge';
       case 'GOLF':
-        return 'Complimentary golf rounds and coaching sessions';
+        return 'Complimentary golf';
       case 'MOVIES_AND_EVENTS':
-        return '1+1 movie tickets & event entertainment passes';
+        return 'Movie & event offers';
       case 'SHOPPING':
-        return 'Accelerated shopping & e-commerce cashback';
+        return 'Shopping rewards';
       case 'INSURANCE':
-        return 'Comprehensive air accident & emergency medical cover';
+        return 'Travel & accident insurance';
       case 'VOUCHERS':
-        return 'Welcome vouchers and anniversary gift bonuses';
+        return 'Welcome & milestone vouchers';
+      case 'FUEL':
+        return 'Fuel surcharge waiver';
+      case 'CASHBACK':
+        return 'Cashback on spends';
       default:
         return null;
     }
   }
 
-  static String? _formatLounge(String lounge) {
+  static String? loungeLabel(String lounge) {
     switch (lounge) {
       case 'DOMESTIC_LOUNGE':
-        return 'Unlimited domestic airport lounge access';
+        return 'Domestic airport lounges';
       case 'INTERNATIONAL_LOUNGE':
-        return 'Complimentary global lounge access via Priority Pass';
+        return 'International airport lounges';
       case 'ADD_ON_CARD_DOMESTIC_LOUNGE':
-        return 'Free domestic lounge visits for add-on cardholders';
+        return 'Domestic lounges for add-on cards';
       case 'ADD_ON_CARD_INTERNATIONAL_LOUNGE':
-        return 'Free international lounge visits for add-on members';
+        return 'International lounges for add-on cards';
       case 'ADD_ON_CARD_LOUNGE':
-        return 'Complimentary lounge privileges on add-on cards';
+        return 'Lounge access on add-on cards';
+      case 'RAILWAY_LOUNGE':
+        return 'Railway lounges';
       default:
         return null;
     }
   }
+
+  factory CatalogCardModel.fromEntity(CatalogCard c) => CatalogCardModel(
+        id: c.id,
+        name: c.name,
+        displayName: c.displayName,
+        slug: c.slug,
+        bankName: c.bankName,
+        bankSlug: c.bankSlug,
+        network: c.network,
+        cardType: c.cardType,
+        annualFee: c.annualFee,
+        joiningFee: c.joiningFee,
+        feeWaiverSpend: c.feeWaiverSpend,
+        rewardType: c.rewardType,
+        baseReturnRate: c.baseReturnRate,
+        maxReturnRate: c.maxReturnRate,
+        returnRangeLabel: c.returnRangeLabel,
+        forexMarkup: c.forexMarkup,
+        imageUrl: c.imageUrl,
+        bankLogoUrl: c.bankLogoUrl,
+        isPopular: c.isPopular,
+        isCurrentlyIssuing: c.isCurrentlyIssuing,
+        rating: c.rating,
+        overview: c.overview,
+        keyPerks: c.keyPerks,
+        loungeTypes: c.loungeTypes,
+        benefitTypes: c.benefitTypes,
+        availableTabs: c.availableTabs,
+        tabs: c.tabs,
+      );
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'title': name,
-        'name': name,
+        'display_name': displayName,
         'slug': slug,
         'bank_name': bankName,
         'bank_slug': bankSlug,
         'network_type': network,
-        'network': network,
         'card_type': cardType,
         'renewal_fee': annualFee,
-        'annual_fee': annualFee,
         'joining_fee': joiningFee,
         'fee_waiver_spend': feeWaiverSpend,
         'reward_type': rewardType,
         'return_min_percent': baseReturnRate,
-        'base_return_rate': baseReturnRate,
+        'return_max_percent': maxReturnRate,
+        'return_percentage_raw': returnRangeLabel,
+        'forex_markup_percent': forexMarkup,
         'card_image_url': imageUrl,
-        'image_url': imageUrl,
         'bank_logo_url': bankLogoUrl,
         'is_popular': isPopular,
+        'is_currently_issuing': isCurrentlyIssuing,
         'rating': rating,
+        'overview_text': overview,
         'key_perks': keyPerks,
+        'lounge_types': loungeTypes,
+        'benefit_types': benefitTypes,
+        'available_tabs': availableTabs,
       };
 }

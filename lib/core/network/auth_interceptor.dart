@@ -1,29 +1,33 @@
 import 'package:dio/dio.dart';
 import '../storage/local_cache_service.dart';
 
-/// Interceptor that attaches JWT Bearer token and intercepts 401s
+/// Attaches the JWT and reports expired sessions.
+///
+/// Guest sessions never send a token, so the backend is only asked for
+/// user-scoped data when the user actually signed in.
 class AuthInterceptor extends Interceptor {
   final LocalCacheService _cacheService;
-  final void Function()? onUnauthorized;
+
+  /// Invoked once when an authenticated request returns 401.
+  void Function()? onUnauthorized;
 
   AuthInterceptor(this._cacheService, {this.onUnauthorized});
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     final token = _cacheService.getAuthToken();
-    if (token != null && token.isNotEmpty) {
+    if (!_cacheService.isGuest && token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
-    options.headers['Accept'] = 'application/json';
-    return handler.next(options);
+    handler.next(options);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    if (err.response?.statusCode == 401) {
-      _cacheService.clearAuthToken();
+    final hadToken = err.requestOptions.headers.containsKey('Authorization');
+    if (err.response?.statusCode == 401 && hadToken) {
       onUnauthorized?.call();
     }
-    return handler.next(err);
+    handler.next(err);
   }
 }

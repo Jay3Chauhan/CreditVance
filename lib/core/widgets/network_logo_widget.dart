@@ -2,18 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../constants/app_assets.dart';
 import '../constants/app_colors.dart';
-import '../constants/app_dimensions.dart';
 import '../constants/app_typography.dart';
 
-/// Reusable Payment Network Logo Widget (Visa, Mastercard, Amex, RuPay, Diners Club, Discover).
-/// Uses high-resolution transparent PNG by default for pristine rendering on dark obsidian surfaces
-/// and zero SVG Inkscape parsing warnings, with SVG support available via [useSvg].
+/// Payment network mark (Visa, Mastercard, Amex, RuPay, Diners).
+/// Designed to sit on the dark card surface.
 class NetworkLogoWidget extends StatelessWidget {
   final String network;
   final double height;
   final double? width;
-  final BoxFit fit;
-  final bool isLuxuryPill;
   final bool useSvg;
 
   const NetworkLogoWidget({
@@ -21,78 +17,36 @@ class NetworkLogoWidget extends StatelessWidget {
     required this.network,
     this.height = 20.0,
     this.width,
-    this.fit = BoxFit.contain,
-    this.isLuxuryPill = false,
     this.useSvg = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final assetPng = AppAssets.getNetworkLogoPng(network);
-    final assetSvg = AppAssets.getNetworkLogoSvg(network);
+    final png = AppAssets.getNetworkLogoPng(network);
+    final svg = AppAssets.getNetworkLogoSvg(network);
 
-    Widget logoContent;
-
-    if (useSvg && assetSvg != null) {
-      logoContent = SvgPicture.asset(
-        assetSvg,
+    if (useSvg && svg != null) {
+      return SvgPicture.asset(svg, height: height, width: width, placeholderBuilder: (_) => _fallback());
+    }
+    if (png != null) {
+      return Image.asset(
+        png,
         height: height,
         width: width,
-        fit: fit,
-        placeholderBuilder: (_) => _buildFallbackText(),
-      );
-    } else if (assetPng != null) {
-      logoContent = Image.asset(
-        assetPng,
-        height: height,
-        width: width,
-        fit: fit,
+        fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
-        errorBuilder: (_, __, ___) => _buildFallbackText(),
-      );
-    } else {
-      logoContent = _buildFallbackText();
-    }
-
-    if (isLuxuryPill) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.4),
-          borderRadius: BorderRadius.circular(AppDimensions.radiusXs),
-          border: Border.all(color: AppColors.borderSubtle, width: 0.6),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.25),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: logoContent,
+        errorBuilder: (_, _, _) => _fallback(),
       );
     }
-
-    return logoContent;
+    return _fallback();
   }
 
-  Widget _buildFallbackText() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.35),
-        borderRadius: BorderRadius.circular(AppDimensions.radiusXs),
-        border: Border.all(color: AppColors.borderSubtle, width: 0.5),
-      ),
-      child: Text(
-        network.toUpperCase(),
-        style: AppTypography.labelSmall.copyWith(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w800,
-          fontStyle: FontStyle.italic,
-          fontSize: 9.5,
-        ),
-      ),
+  Widget _fallback() {
+    final label = network.split(RegExp(r'\s+')).first.toUpperCase();
+    return Text(
+      label,
+      style: AppTypography.numeric(height * 0.55, weight: FontWeight.w800, color: AppColors.cardText)
+          .copyWith(fontStyle: FontStyle.italic, letterSpacing: 0.5),
     );
   }
 }

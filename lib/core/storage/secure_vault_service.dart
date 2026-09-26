@@ -1,13 +1,51 @@
-import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:local_auth/error_codes.dart' as auth_error;
 import 'package:local_auth/local_auth.dart';
 import '../utils/clipboard_helper.dart';
 
-/// Zero-Knowledge Hardware Vault Service (PCI-DSS & App Store Compliant).
-/// Raw 16-digit card numbers (PAN) and CVVs are saved exclusively inside the
-/// device's hardware-backed Secure Enclave (KeyStore / Keychain).
-/// The backend NEVER receives or processes these details.
+/// Outcome of a biometric-protected vault operation.
+enum VaultStatus {
+  success,
+  cancelled,
+  notFound,
+  lockedOut,
+  notEnrolled,
+  error;
+
+  bool get isSuccess => this == VaultStatus.success;
+
+  String get message {
+    switch (this) {
+      case VaultStatus.success:
+        return 'Done';
+      case VaultStatus.cancelled:
+        return 'Verification cancelled';
+      case VaultStatus.notFound:
+        return 'No card number saved for this card. Edit the card to add it.';
+      case VaultStatus.lockedOut:
+        return 'Too many attempts. Unlock your phone and try again.';
+      case VaultStatus.notEnrolled:
+        return 'Set up a screen lock or fingerprint on your phone first.';
+      case VaultStatus.error:
+        return 'Could not access the secure vault.';
+    }
+  }
+}
+
+/// Decrypted card secrets. Kept in memory only for the reveal window.
+class VaultSecrets {
+  final String pan;
+  final String cvv;
+  final String expiry;
+
+  const VaultSecrets({required this.pan, this.cvv = '', this.expiry = ''});
+}
+
+/// Zero-knowledge hardware vault.
+///
+/// PAN, CVV and expiry are written only to Android Keystore-backed storage /
+/// iOS Keychain and are never sent to any server.
 class SecureVaultService {
   final FlutterSecureStorage _storage;
   final LocalAuthentication _localAuth;
@@ -18,103 +56,140 @@ class SecureVaultService {
   })  : _storage = storage ??
             const FlutterSecureStorage(
               aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
             ),
         _localAuth = localAuth ?? LocalAuthentication();
 
-  /// Saves sensitive card data locally into secure storage
-  Future<void> saveLocalCardDetails({
+  static String _key(int id, String field) => 'vault_card_${id}_$field';
+
+  Future<void> saveCardSecrets({
     required int userCardId,
     required String cardNumber,
     String? cvv,
     String? expiry,
   }) async {
-    final cleanPan = cardNumber.replaceAll(' ', '');
-    await _storage.write(key: 'vault_card_${userCardId}_pan', value: cleanPan);
+    final cleanPan = cardNumber.replaceAll(RegExp(r'\D'), '');
+    await _storage.write(key: _key(userCardId, 'pan'), value: cleanPan);
     if (cvv != null && cvv.isNotEmpty) {
-      await _storage.write(key: 'vault_card_${userCardId}_cvv', value: cvv);
+      await _storage.write(key: _key(userCardId, 'cvv'), value: cvv);
     }
     if (expiry != null && expiry.isNotEmpty) {
-      await _storage.write(key: 'vault_card_${userCardId}_exp', value: expiry);
+      await _storage.write(key: _key(userCardId, 'exp'), value: expiry);
     }
   }
 
-  /// Authenticates using biometrics (Face ID / Fingerprint) or device passcode
-  Future<bool> authenticateBiometrics({String reason = 'Authenticate to access card vault'}) async {
-    try {
-      final canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
-      final isDeviceSupported = await _localAuth.isDeviceSupported();
-
-      if (!canAuthenticateWithBiometrics && !isDeviceSupported) {
-        // Device lacks biometric hardware or is simulator; return true for testability
-        return true;
+  /// Moves secrets when a locally created card receives a server id.
+  Future<void> moveCardSecrets(int fromId, int toId) async {
+    if (fromId == toId) return;
+    for (final field in ['pan', 'cvv', 'exp']) {
+      final value = await _storage.read(key: _key(fromId, field));
+      if (value != null) {
+        await _storage.write(key: _key(toId, field), value: value);
+        await _storage.delete(key: _key(fromId, field));
       }
+    }
+  }
 
-      return await _localAuth.authenticate(
-        localizedReason: reason,
-        options: const AuthenticationOptions(
-          biometricOnly: false,
-          stickyAuth: true,
-          useErrorDialogs: true,
-        ),
-      );
-    } on PlatformException {
-      // In case of platform auth cancellation or error
-      return false;
+  Future<bool> canUseBiometrics() async {
+    try {
+      return await _localAuth.isDeviceSupported();
     } catch (_) {
       return false;
     }
   }
 
-  /// Copies 16-digit card number to clipboard after biometric verification.
-  /// Auto-clears the clipboard after 30 seconds.
-  Future<bool> copyCardNumberWithBiometrics(int userCardId) async {
-    final authenticated = await authenticateBiometrics(
-      reason: 'Authenticate to copy your card number to clipboard',
-    );
-    if (!authenticated) return false;
-
-    final pan = await _storage.read(key: 'vault_card_${userCardId}_pan');
-    if (pan != null && pan.isNotEmpty) {
-      await ClipboardHelper.instance.copyWithAutoClear(pan);
-      return true;
+  /// Prompts for biometrics or device credential.
+  Future<VaultStatus> authenticate({required String reason}) async {
+    try {
+      final supported = await _localAuth.isDeviceSupported();
+      if (!supported) {
+        // Emulators / devices with no lock screen: the data is still
+        // hardware-encrypted, so allow access rather than locking users out.
+        return VaultStatus.success;
+      }
+      final ok = await _localAuth.authenticate(
+        localizedReason: reason,
+        options: const AuthenticationOptions(
+          biometricOnly: false,
+          stickyAuth: true,
+          useErrorDialogs: true,
+          sensitiveTransaction: true,
+        ),
+      );
+      return ok ? VaultStatus.success : VaultStatus.cancelled;
+    } on PlatformException catch (e) {
+      switch (e.code) {
+        case auth_error.lockedOut:
+        case auth_error.permanentlyLockedOut:
+          return VaultStatus.lockedOut;
+        case auth_error.notEnrolled:
+        case auth_error.passcodeNotSet:
+          return VaultStatus.notEnrolled;
+        case auth_error.notAvailable:
+          return VaultStatus.success;
+        default:
+          return VaultStatus.error;
+      }
+    } catch (_) {
+      return VaultStatus.error;
     }
-    return false;
   }
 
-  /// Reads secure card details (PAN, CVV, Expiry) after biometric verification
-  Future<Map<String, String>?> getCardDetailsWithBiometrics(int userCardId) async {
-    final authenticated = await authenticateBiometrics(
-      reason: 'Authenticate to reveal card details',
-    );
-    if (!authenticated) return null;
+  Future<VaultStatus> copyCardNumber(
+    int userCardId, {
+    required Duration clearAfter,
+    String reason = 'Confirm it\'s you to copy the card number',
+  }) async {
+    final pan = await _storage.read(key: _key(userCardId, 'pan'));
+    if (pan == null || pan.isEmpty) return VaultStatus.notFound;
 
-    final pan = await _storage.read(key: 'vault_card_${userCardId}_pan');
-    final cvv = await _storage.read(key: 'vault_card_${userCardId}_cvv');
-    final exp = await _storage.read(key: 'vault_card_${userCardId}_exp');
+    final auth = await authenticate(reason: reason);
+    if (!auth.isSuccess) return auth;
 
-    return {
-      'pan': pan ?? '',
-      'cvv': cvv ?? '',
-      'expiry': exp ?? '',
-    };
+    await ClipboardHelper.instance.copyWithAutoClear(pan, duration: clearAfter);
+    return VaultStatus.success;
   }
 
-  /// Checks if local vault has secured PAN for a given userCardId
-  Future<bool> hasLocalDetails(int userCardId) async {
-    final pan = await _storage.read(key: 'vault_card_${userCardId}_pan');
+  /// Copies a single field (cvv / exp) after verification.
+  Future<VaultStatus> copyField(
+    int userCardId,
+    String field, {
+    required Duration clearAfter,
+    required String reason,
+  }) async {
+    final value = await _storage.read(key: _key(userCardId, field));
+    if (value == null || value.isEmpty) return VaultStatus.notFound;
+    final auth = await authenticate(reason: reason);
+    if (!auth.isSuccess) return auth;
+    await ClipboardHelper.instance.copyWithAutoClear(value, duration: clearAfter);
+    return VaultStatus.success;
+  }
+
+  Future<(VaultStatus, VaultSecrets?)> readSecrets(
+    int userCardId, {
+    String reason = 'Confirm it\'s you to view card details',
+  }) async {
+    final pan = await _storage.read(key: _key(userCardId, 'pan'));
+    if (pan == null || pan.isEmpty) return (VaultStatus.notFound, null);
+
+    final auth = await authenticate(reason: reason);
+    if (!auth.isSuccess) return (auth, null);
+
+    final cvv = await _storage.read(key: _key(userCardId, 'cvv'));
+    final exp = await _storage.read(key: _key(userCardId, 'exp'));
+    return (VaultStatus.success, VaultSecrets(pan: pan, cvv: cvv ?? '', expiry: exp ?? ''));
+  }
+
+  Future<bool> hasCardSecrets(int userCardId) async {
+    final pan = await _storage.read(key: _key(userCardId, 'pan'));
     return pan != null && pan.isNotEmpty;
   }
 
-  /// Deletes local card keys from the hardware vault
-  Future<void> deleteLocalCardDetails(int userCardId) async {
-    await _storage.delete(key: 'vault_card_${userCardId}_pan');
-    await _storage.delete(key: 'vault_card_${userCardId}_cvv');
-    await _storage.delete(key: 'vault_card_${userCardId}_exp');
+  Future<void> deleteCardSecrets(int userCardId) async {
+    for (final field in ['pan', 'cvv', 'exp']) {
+      await _storage.delete(key: _key(userCardId, field));
+    }
   }
 
-  /// Clears entire vault (e.g. on account logout)
-  Future<void> clearAll() async {
-    await _storage.deleteAll();
-  }
+  Future<void> clearAll() => _storage.deleteAll();
 }

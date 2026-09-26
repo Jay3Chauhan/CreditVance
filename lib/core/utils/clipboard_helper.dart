@@ -1,28 +1,25 @@
 import 'dart:async';
-import 'package:flutter/services.dart';
 
-/// Clipboard utility with auto-clearing security timer.
+import '../platform/secure_platform.dart';
+
+/// Copies sensitive values and guarantees they are wiped after a timeout.
+///
+/// The wipe is scheduled natively (works in background on Android 10+ where
+/// apps can no longer read the clipboard) with a Dart timer as a backstop.
 class ClipboardHelper {
   ClipboardHelper._();
   static final ClipboardHelper instance = ClipboardHelper._();
 
-  Timer? _autoClearTimer;
+  Timer? _backstop;
 
-  /// Copies text to clipboard and starts a 30-second wipe countdown.
   Future<void> copyWithAutoClear(String text, {Duration duration = const Duration(seconds: 30)}) async {
-    await Clipboard.setData(ClipboardData(text: text));
-
-    _autoClearTimer?.cancel();
-    _autoClearTimer = Timer(duration, () async {
-      final currentData = await Clipboard.getData(Clipboard.kTextPlain);
-      if (currentData?.text == text) {
-        await Clipboard.setData(const ClipboardData(text: ''));
-      }
-    });
+    await SecurePlatform.copySensitive(text, clearAfter: duration);
+    _backstop?.cancel();
+    _backstop = Timer(duration + const Duration(seconds: 1), SecurePlatform.clearClipboard);
   }
 
-  /// Cancels any scheduled wipe
-  void cancelScheduledClear() {
-    _autoClearTimer?.cancel();
+  Future<void> clearNow() async {
+    _backstop?.cancel();
+    await SecurePlatform.clearClipboard();
   }
 }

@@ -4,798 +4,641 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/storage/secure_vault_service.dart';
 import '../../../../core/utils/app_toast.dart';
-import '../../../../core/utils/haptics_helper.dart';
-import '../../../../core/utils/view_state.dart';
-import '../../../../core/widgets/luxury_button.dart';
-import '../../../../core/widgets/luxury_glass_card.dart';
-import '../../../../core/widgets/luxury_text_field.dart';
+import '../../../../core/utils/context_ext.dart';
+import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_sheet.dart';
+import '../../../../core/widgets/app_surface.dart';
+import '../../../../core/widgets/settings_tile.dart';
+import '../../../catalog/presentation/providers/catalog_provider.dart';
+import '../../../settings/domain/app_settings.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../providers/auth_provider.dart';
 
-/// User Profile, Security Vault settings, and Authentication Controls.
-/// Strictly Zero setState: Uses Provider Consumers and ValueNotifier.
-/// Professional, clean MNC fintech design with zero clutter.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvasDark,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Account & Security', style: AppTypography.headlineLarge),
-            Text(
-              'Zero-Knowledge Privacy Controls',
-              style: AppTypography.labelSmall.copyWith(color: AppColors.goldLight),
-            ),
-          ],
-        ),
-      ),
-      body: Consumer<AuthProvider>(
-        builder: (context, auth, _) {
-          if (!auth.isAuthenticated || auth.user == null) {
-            return const _UnauthenticatedAuthView();
-          }
+    final gutter = context.gutter();
+    final isGuest = context.select<AuthProvider, bool>((a) => a.isGuest);
 
-          return _AuthenticatedProfileView(auth: auth);
-        },
+    return Scaffold(
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          const _ProfileHeader(),
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 0),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                if (isGuest) const _GuestUpsell(),
+                const _AppearanceSection(),
+                const _SecuritySection(),
+                const _DataSection(),
+                const _AboutSection(),
+                const SizedBox(height: AppDimensions.p24),
+                const _SignOutButton(),
+                const SizedBox(height: AppDimensions.p16),
+                Center(
+                  child: Text('${AppStrings.appName} v${AppStrings.appVersion}', style: context.text.labelSmall),
+                ),
+              ]),
+            ),
+          ),
+          SliverToBoxAdapter(child: SizedBox(height: context.navClearance)),
+        ],
       ),
     );
   }
 }
 
-/// Unauthenticated View providing Sign In, Registration, and One-Tap Demo Login.
-/// Strictly Zero setState: Uses ValueNotifier for view switching and password toggles.
-class _UnauthenticatedAuthView extends StatelessWidget {
-  const _UnauthenticatedAuthView();
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader();
 
   @override
   Widget build(BuildContext context) {
-    final isLoginModeNotifier = ValueNotifier<bool>(true);
-    final isObscurePasswordNotifier = ValueNotifier<bool>(true);
+    final c = context.colors;
+    final auth = context.watch<AuthProvider>();
+    final wallet = context.watch<WalletProvider>();
+    final user = auth.user;
+    final name = auth.isGuest ? 'Guest' : (user?.fullName.isNotEmpty ?? false ? user!.fullName : 'Your account');
+    final subtitle = auth.isGuest ? 'Everything stays on this device' : (user?.email ?? '');
+    final secured = wallet.cards.where((c) => c.hasVaultDetails).length;
 
-    final emailController = TextEditingController(text: 'jay@cardsage.app');
-    final passwordController = TextEditingController(text: 'Password123!');
-    final nameController = TextEditingController(text: 'Jay');
-
-    return RefreshIndicator(
-      color: AppColors.gold,
-      backgroundColor: AppColors.surfaceSecondary,
-      onRefresh: () => context.read<AuthProvider>().init(),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: AppDimensions.screenPadding,
-        child: ValueListenableBuilder<bool>(
-          valueListenable: isLoginModeNotifier,
-          builder: (context, isLogin, _) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header Card
-                LuxuryGlassCard(
-                  child: Column(
+    return SliverAppBar(
+      pinned: true,
+      stretch: true,
+      expandedHeight: 250,
+      title: Text(AppStrings.navProfile, style: context.text.titleMedium),
+      centerTitle: false,
+      flexibleSpace: FlexibleSpaceBar(
+        collapseMode: CollapseMode.parallax,
+        stretchModes: const [StretchMode.zoomBackground, StretchMode.fadeTitle],
+        background: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [c.tint(c.accent, c.isDark ? 0.16 : 0.14), c.canvas],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(context.gutter(), 52, context.gutter(), 16),
+              child: Column(
+                children: [
+                  Row(
                     children: [
                       Container(
-                        width: 64,
-                        height: 64,
-                        decoration: const BoxDecoration(
-                          gradient: AppColors.goldGradient,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(AppIcons.lock, size: 30, color: AppColors.canvasDark),
-                        ),
-                      )
-                          .animate(onPlay: (c) => c.repeat(reverse: true))
-                          .custom(
-                            duration: 2200.ms,
-                            curve: Curves.easeInOut,
-                            builder: (ctx, value, child) {
-                              return DecoratedBox(
-                                position: DecorationPosition.foreground,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.gold.withOpacity(0.18 + value * 0.35),
-                                      blurRadius: 20 + value * 18,
-                                      spreadRadius: value * 4,
-                                    ),
-                                  ],
-                                ),
-                                child: child,
-                              );
-                            },
-                          )
-                          .fadeIn(duration: 500.ms),
-                      const SizedBox(height: AppDimensions.p16),
-                      Text(
-                        isLogin ? 'Sign In to Your Vault' : 'Create Vault Account',
-                        style: AppTypography.headlineMedium,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Access hardware-encrypted card portfolios and real-time reward optimizers.',
-                        style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: AppDimensions.p20),
-
-                // Mode Switcher Tabs with smooth sliding pill
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceSecondary,
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                    border: Border.all(color: AppColors.borderSubtle),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final tabWidth = constraints.maxWidth / 2;
-                      return Stack(
-                        children: [
-                          AnimatedAlign(
-                            alignment: isLogin ? Alignment.centerLeft : Alignment.centerRight,
-                            duration: AppDimensions.mediumAnim,
-                            curve: Curves.fastOutSlowIn,
-                            child: Container(
-                              width: tabWidth,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.gold,
-                                borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.gold.withOpacity(0.35),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: () {
-                                    HapticsHelper.selection();
-                                    isLoginModeNotifier.value = true;
-                                    context.read<AuthProvider>().clearError();
-                                  },
-                                  child: Container(
-                                    height: 40,
-                                    alignment: Alignment.center,
-                                    child: AnimatedDefaultTextStyle(
-                                      duration: AppDimensions.fastAnim,
-                                      style: AppTypography.labelLarge.copyWith(
-                                        color: isLogin ? AppColors.canvasDark : AppColors.textSecondary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      child: const Text('Sign In'),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: () {
-                                    HapticsHelper.selection();
-                                    isLoginModeNotifier.value = false;
-                                    context.read<AuthProvider>().clearError();
-                                  },
-                                  child: Container(
-                                    height: 40,
-                                    alignment: Alignment.center,
-                                    child: AnimatedDefaultTextStyle(
-                                      duration: AppDimensions.fastAnim,
-                                      style: AppTypography.labelLarge.copyWith(
-                                        color: !isLogin ? AppColors.canvasDark : AppColors.textSecondary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      child: const Text('Create Account'),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: AppDimensions.p20),
-
-                // Error Banner (if any)
-                Consumer<AuthProvider>(
-                  builder: (context, auth, _) {
-                    if (auth.errorMessage == null) return const SizedBox.shrink();
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: AppDimensions.p16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                        border: Border.all(color: AppColors.error.withOpacity(0.4)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(AppIcons.alertCircle, color: AppColors.error, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              auth.errorMessage!,
-                              style: AppTypography.bodySmall.copyWith(color: AppColors.error),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-
-                // Form Fields
-                if (!isLogin) ...[
-                  LuxuryTextField(
-                    label: 'Full Name',
-                    hint: 'e.g. Jay Chauhan',
-                    controller: nameController,
-                    prefixIcon: AppIcons.user,
-                  ),
-                  const SizedBox(height: AppDimensions.p16),
-                ],
-
-                LuxuryTextField(
-                  label: 'Email Address',
-                  hint: 'name@example.com',
-                  controller: emailController,
-                  prefixIcon: AppIcons.mail,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-
-                const SizedBox(height: AppDimensions.p16),
-
-                ValueListenableBuilder<bool>(
-                  valueListenable: isObscurePasswordNotifier,
-                  builder: (context, isObscure, _) {
-                    return LuxuryTextField(
-                      label: 'Vault Password',
-                      hint: '••••••••••••',
-                      controller: passwordController,
-                      prefixIcon: AppIcons.lock,
-                      obscureText: isObscure,
-                      suffix: IconButton(
-                        icon: Icon(
-                          isObscure ? AppIcons.eye : AppIcons.eyeSlash,
-                          color: AppColors.textSecondary,
-                          size: 18,
-                        ),
-                        onPressed: () {
-                          isObscurePasswordNotifier.value = !isObscure;
-                        },
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: AppDimensions.p24),
-
-                // Primary CTA
-                Consumer<AuthProvider>(
-                  builder: (context, auth, _) {
-                    return LuxuryButton(
-                      label: isLogin ? 'Open Security Vault' : 'Initialize Vault Account',
-                      icon: AppIcons.unlock,
-                      isLoading: auth.state == ViewState.loading,
-                      onPressed: () async {
-                        final email = emailController.text.trim();
-                        final password = passwordController.text.trim();
-                        final name = nameController.text.trim();
-
-                        if (email.isEmpty || password.isEmpty) {
-                          AppToast.error(
-                            context,
-                            title: 'Validation Error',
-                            message: 'Please fill in all credentials.',
-                          );
-                          return;
-                        }
-
-                        HapticsHelper.medium();
-                        final walletProv = context.read<WalletProvider>();
-
-                        if (isLogin) {
-                          final success = await auth.login(email, password);
-                          if (success) {
-                            await walletProv.loadCards(isRefresh: true);
-                            if (context.mounted) {
-                              AppToast.success(
-                                context,
-                                title: 'Vault Decrypted',
-                                message: 'Welcome back, ${auth.user?.fullName ?? "User"}!',
-                              );
-                            }
-                          }
-                        } else {
-                          if (name.isEmpty) {
-                            AppToast.error(
-                              context,
-                              title: 'Name Required',
-                              message: 'Please enter your full name.',
-                            );
-                            return;
-                          }
-                          final success = await auth.register(
-                            email,
-                            password,
-                            name,
-                          );
-                          if (success) {
-                            await walletProv.loadCards(isRefresh: true);
-                            if (context.mounted) {
-                              AppToast.success(
-                                context,
-                                title: 'Account Initialized',
-                                message: 'Vault profile ready for hardware storage.',
-                              );
-                            }
-                          }
-                        }
-                      },
-                    );
-                  },
-                ),
-
-                const SizedBox(height: AppDimensions.p16),
-
-                // Demo User Quick Button
-                Consumer<AuthProvider>(
-                  builder: (context, auth, _) {
-                    return LuxuryButton(
-                      label: 'One-Tap Demo Sign In (Jay)',
-                      variant: LuxuryButtonVariant.secondary,
-                      isLoading: auth.state == ViewState.loading,
-                      onPressed: () async {
-                        HapticsHelper.light();
-                        final walletProv = context.read<WalletProvider>();
-                        final success = await auth.loginAsDemo();
-                        if (success) {
-                          await walletProv.loadCards(isRefresh: true);
-                          if (context.mounted) {
-                            AppToast.success(
-                              context,
-                              title: 'Demo Access Granted',
-                              message: 'Signed in as Demo User (Jay).',
-                            );
-                          }
-                        }
-                      },
-                    );
-                  },
-                ),
-
-                const SizedBox(height: AppDimensions.p32),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-/// Authenticated Profile Screen — Executive MNC Fintech Design.
-/// Professional, structured, minimal chips, elegant typography and security diagnostics.
-class _AuthenticatedProfileView extends StatelessWidget {
-  final AuthProvider auth;
-
-  const _AuthenticatedProfileView({required this.auth});
-
-  @override
-  Widget build(BuildContext context) {
-    final user = auth.user!;
-
-    return RefreshIndicator(
-      color: AppColors.gold,
-      backgroundColor: AppColors.surfaceSecondary,
-      onRefresh: () async {
-        await Future.wait([
-          auth.init(),
-          context.read<WalletProvider>().loadCards(isRefresh: true),
-        ]);
-      },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: AppDimensions.screenPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Executive User Profile Hero
-            LuxuryGlassCard(
-              padding: const EdgeInsets.all(AppDimensions.p20),
-              child: Row(
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.goldGradient,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.gold.withOpacity(0.25),
-                          blurRadius: 14,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : 'U',
-                        style: AppTypography.headlineLarge.copyWith(
-                          color: AppColors.canvasDark,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppDimensions.p16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(user.fullName, style: AppTypography.headlineMedium),
-                        const SizedBox(height: 2),
-                        Text(
-                          user.email,
-                          style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
+                        width: 58,
+                        height: 58,
+                        decoration: const BoxDecoration(gradient: AppColors.goldGradient, shape: BoxShape.circle),
+                        alignment: Alignment.center,
+                        child: auth.isGuest
+                            ? const Icon(AppIcons.user, color: AppColors.black, size: 24)
+                            : Text(user?.initials ?? '', style: AppTypography.numeric(20, color: AppColors.black)),
+                      ).animate().scale(duration: AppDimensions.mediumAnim, curve: Curves.easeOutBack),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 7,
-                              height: 7,
-                              decoration: const BoxDecoration(
-                                color: AppColors.emerald,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Vault Active • Encrypted On-Device',
-                              style: AppTypography.labelSmall.copyWith(
-                                color: AppColors.emeraldLight,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 11,
-                              ),
+                            Text(name, style: context.text.headlineSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Icon(auth.isGuest ? AppIcons.lock : AppIcons.seal, size: 13, color: c.textTertiary),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(subtitle, style: context.text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
-
-            const SizedBox(height: AppDimensions.p16),
-
-            // 2. Vault Snapshot Metrics Bar
-            Consumer<WalletProvider>(
-              builder: (context, walletProv, _) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: _buildMetricTile(
-                        label: 'VAULT CARDS',
-                        value: '${walletProv.cards.length} Cards',
-                        icon: AppIcons.navWallet,
-                        accentColor: AppColors.gold,
-                      ),
-                    ),
-                    const SizedBox(width: AppDimensions.p8),
-                    Expanded(
-                      child: _buildMetricTile(
-                        label: 'CIPHER',
-                        value: 'AES-256',
-                        icon: AppIcons.lock,
-                        accentColor: AppColors.emerald,
-                      ),
-                    ),
-                    const SizedBox(width: AppDimensions.p8),
-                    Expanded(
-                      child: _buildMetricTile(
-                        label: 'STORAGE',
-                        value: 'KeyStore',
-                        icon: AppIcons.shieldCheck,
-                        accentColor: AppColors.sapphire,
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ).animate(delay: 80.ms).fadeIn(duration: 350.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
-
-            const SizedBox(height: AppDimensions.p24),
-
-            // 3. Security & Biometrics Group
-            Text('Hardware Security & Policy', style: AppTypography.titleSmall)
-                .animate(delay: 120.ms).fadeIn(duration: 300.ms),
-            const SizedBox(height: AppDimensions.p12),
-
-            LuxuryGlassCard(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Column(
-                children: [
-                  _buildSecurityRow(
-                    icon: AppIcons.faceId,
-                    iconColor: AppColors.gold,
-                    title: 'Biometric Verification',
-                    subtitle: 'Required for copy & credential reveal',
-                    statusText: 'Enforced',
-                    statusColor: AppColors.emerald,
-                  ),
-                  const Divider(height: 1),
-                  _buildSecurityRow(
-                    icon: AppIcons.lock,
-                    iconColor: AppColors.emerald,
-                    title: 'Zero-Knowledge Isolation',
-                    subtitle: 'Full PAN and CVV never transmitted',
-                    statusText: 'Air-Gapped',
-                    statusColor: AppColors.emerald,
-                  ),
-                  const Divider(height: 1),
-                  _buildSecurityRow(
-                    icon: AppIcons.copy,
-                    iconColor: AppColors.sapphire,
-                    title: 'Auto-Purge Clipboard',
-                    subtitle: 'Clears copied PAN after 30 seconds',
-                    statusText: '30s Active',
-                    statusColor: AppColors.textSecondary,
-                  ),
-                ],
-              ),
-            ).animate(delay: 160.ms).fadeIn(duration: 400.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
-
-            const SizedBox(height: AppDimensions.p24),
-
-            // 4. Vault Diagnostic Specifications
-            Text('System & Privacy Specs', style: AppTypography.titleSmall)
-                .animate(delay: 200.ms).fadeIn(duration: 300.ms),
-            const SizedBox(height: AppDimensions.p12),
-
-            LuxuryGlassCard(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                children: [
-                  _buildSpecRow('Encryption Engine', 'Android KeyStore / Secure Enclave'),
-                  const Divider(height: 16),
-                  _buildSpecRow('Network Outbound', '0 B (Zero card data sent)'),
-                  const Divider(height: 16),
-                  _buildSpecRow('Offline Database', 'Local Cache • Hardware Vault'),
-                  const Divider(height: 16),
-                  _buildSpecRow('Client Version', 'CardSage 1.0.0 (Enterprise)'),
-                ],
-              ),
-            ).animate(delay: 240.ms).fadeIn(duration: 400.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
-
-            const SizedBox(height: AppDimensions.p32),
-
-            // 5. Clean Action: Log Out
-            LuxuryButton(
-              label: 'Sign Out of Vault Session',
-              variant: LuxuryButtonVariant.danger,
-              onPressed: () {
-                HapticsHelper.medium();
-                final walletProv = context.read<WalletProvider>();
-
-                showDialog(
-                  context: context,
-                  builder: (dialogCtx) {
-                    return AlertDialog(
-                      backgroundColor: AppColors.surfacePrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-                        side: const BorderSide(color: AppColors.borderSubtle),
-                      ),
-                      title: Text('Lock and Sign Out?', style: AppTypography.headlineMedium),
-                      content: Text(
-                        'All temporary unmasked vault credentials and active session states will be securely purged from memory.',
-                        style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(dialogCtx).pop(),
-                          child: Text(
-                            'Cancel',
-                            style: AppTypography.labelLarge.copyWith(color: AppColors.textSecondary),
-                          ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Expanded(child: _HeaderStat(label: 'Cards', value: '${wallet.cards.length}')),
+                      const SizedBox(width: 8),
+                      Expanded(child: _HeaderStat(label: 'In vault', value: '$secured', color: c.success)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _HeaderStat(
+                          label: 'Yearly fees',
+                          value: wallet.totalAnnualFees == 0 ? '₹0' : CurrencyFormatter.compact(wallet.totalAnnualFees),
                         ),
-                        TextButton(
-                          onPressed: () async {
-                            Navigator.of(dialogCtx).pop();
-                            await auth.logout();
-                            await walletProv.loadCards(isRefresh: true);
-                            if (context.mounted) {
-                              AppToast.info(
-                                context,
-                                title: 'Vault Locked',
-                                message: 'Signed out of session safely.',
-                              );
-                            }
-                          },
-                          child: Text(
-                            'Lock Vault',
-                            style: AppTypography.labelLarge.copyWith(color: AppColors.error),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-            ).animate(delay: 280.ms).fadeIn(duration: 350.ms),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-            const SizedBox(height: AppDimensions.p32),
+class _HeaderStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? color;
+
+  const _HeaderStat({required this.label, required this.value, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return AppSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      borderRadius: AppDimensions.roundedMd,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value, style: AppTypography.numeric(18, color: color ?? c.textPrimary)),
+          Text(label, style: context.text.labelSmall),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestUpsell extends StatelessWidget {
+  const _GuestUpsell();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: AppSurface(
+        tone: SurfaceTone.accent,
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            IconHalo(icon: AppIcons.shieldStar, color: c.accent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Create a free account', style: context.text.titleSmall),
+                  Text(
+                    'Sync card names across devices and get smarter picks. Numbers & CVVs never leave this phone.',
+                    style: context.text.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            AppButton(
+              label: 'Sign in',
+              compact: true,
+              expand: false,
+              onPressed: () => context.read<AuthProvider>().exitGuest(),
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  /// Metric Tile for high-level vault status
-  Widget _buildMetricTile({
-    required String label,
-    required String value,
-    required IconData icon,
-    required Color accentColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSecondary,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-        border: Border.all(color: AppColors.borderSubtle),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: accentColor),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textTertiary,
-                    fontSize: 9.5,
-                    letterSpacing: 0.8,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: AppTypography.titleSmall.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+class _AppearanceSection extends StatelessWidget {
+  const _AppearanceSection();
 
-  /// Clean security policy row without chip clutter
-  Widget _buildSecurityRow({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required String statusText,
-    required Color statusColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Icon(icon, color: iconColor, size: 18),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTypography.titleSmall.copyWith(fontSize: 13.5)),
-                const SizedBox(height: 1),
-                Text(
-                  subtitle,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                    fontSize: 11.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                statusText,
-                style: AppTypography.labelSmall.copyWith(
-                  color: statusColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11.5,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Clean spec key-value row
-  Widget _buildSpecRow(String key, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  @override
+  Widget build(BuildContext context) {
+    final mode = context.select<SettingsProvider, ThemeMode>((s) => s.themeMode);
+    return SettingsGroup(
+      title: 'Appearance',
       children: [
-        Text(
-          key,
-          style: AppTypography.bodySmall.copyWith(
-            color: AppColors.textSecondary,
-            fontSize: 12,
-          ),
-        ),
-        Text(
-          value,
-          style: AppTypography.bodySmall.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              for (final (m, icon, label) in [
+                (ThemeMode.system, AppIcons.themeSystem, 'System'),
+                (ThemeMode.light, AppIcons.themeLight, 'Light'),
+                (ThemeMode.dark, AppIcons.themeDark, 'Dark'),
+              ]) ...[
+                Expanded(
+                  child: _ThemeOption(
+                    icon: icon,
+                    label: label,
+                    mode: m,
+                    selected: mode == m,
+                  ),
+                ),
+                if (m != ThemeMode.dark) const SizedBox(width: 8),
+              ],
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ThemeOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final ThemeMode mode;
+  final bool selected;
+
+  const _ThemeOption({required this.icon, required this.label, required this.mode, required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final previewDark = mode == ThemeMode.dark || (mode == ThemeMode.system && MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+    final bg = previewDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final fg = previewDark ? AppColors.darkSurfaceHigh : AppColors.lightSurfaceHigh;
+
+    return PressableScale(
+      onTap: () => context.read<SettingsProvider>().setThemeMode(mode),
+      child: AnimatedContainer(
+        duration: AppDimensions.fastAnim,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: AppDimensions.roundedMd,
+          border: Border.all(color: selected ? c.accent : c.border, width: selected ? 1.6 : 1),
+          color: selected ? c.tint(c.accent, 0.08) : Colors.transparent,
+        ),
+        child: Column(
+          children: [
+            Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: AppDimensions.roundedSm,
+                border: Border.all(color: c.border),
+              ),
+              padding: const EdgeInsets.all(6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(width: 26, height: 5, decoration: BoxDecoration(color: AppColors.gold, borderRadius: AppDimensions.roundedFull)),
+                  const SizedBox(height: 4),
+                  Container(height: 5, decoration: BoxDecoration(color: fg, borderRadius: AppDimensions.roundedFull)),
+                  const SizedBox(height: 4),
+                  Container(width: 34, height: 5, decoration: BoxDecoration(color: fg, borderRadius: AppDimensions.roundedFull)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 13, color: selected ? c.accent : c.textSecondary),
+                const SizedBox(width: 4),
+                Text(label, style: context.text.labelMedium!.copyWith(color: selected ? c.textPrimary : c.textSecondary)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SecuritySection extends StatelessWidget {
+  const _SecuritySection();
+
+  Future<void> _toggleAppLock(BuildContext context, bool enable) async {
+    final settings = context.read<SettingsProvider>();
+    if (enable) {
+      final status = await context.read<SecureVaultService>().authenticate(reason: 'Confirm to turn on app lock');
+      if (!context.mounted) return;
+      if (!status.isSuccess) {
+        if (status != VaultStatus.cancelled) AppToast.warning(context, message: status.message);
+        return;
+      }
+    }
+    settings.setAppLock(enable);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final s = context.watch<SettingsProvider>().settings;
+    return SettingsGroup(
+      title: 'Security',
+      footer: 'Copying or revealing card details always asks for biometrics.',
+      children: [
+        SettingsSwitchTile(
+          icon: AppIcons.fingerprint,
+          iconColor: c.accent,
+          title: 'App lock',
+          subtitle: 'Ask for biometrics when opening the app',
+          value: s.appLockEnabled,
+          onChanged: (v) => _toggleAppLock(context, v),
+        ),
+        SettingsSwitchTile(
+          icon: AppIcons.screenshot,
+          iconColor: c.info,
+          title: 'Hide in screenshots',
+          subtitle: 'Blocks screenshots & blurs the app switcher',
+          value: s.blockScreenshots,
+          onChanged: (v) => context.read<SettingsProvider>().setBlockScreenshots(v),
+        ),
+        SettingsTile(
+          icon: AppIcons.clipboard,
+          iconColor: c.success,
+          title: 'Clear clipboard after',
+          value: '${s.clipboardClearSeconds}s',
+          onTap: () => _pickSeconds(
+            context,
+            title: 'Clear clipboard after',
+            options: AppSettings.clipboardOptions,
+            current: s.clipboardClearSeconds,
+            onPicked: context.read<SettingsProvider>().setClipboardSeconds,
+          ),
+        ),
+        SettingsTile(
+          icon: AppIcons.countdown,
+          iconColor: c.warning,
+          title: 'Hide revealed details after',
+          value: '${s.revealSeconds}s',
+          onTap: () => _pickSeconds(
+            context,
+            title: 'Hide revealed details after',
+            options: AppSettings.revealOptions,
+            current: s.revealSeconds,
+            onPicked: context.read<SettingsProvider>().setRevealSeconds,
+          ),
+        ),
+        SettingsSwitchTile(
+          icon: AppIcons.vibrate,
+          title: 'Haptic feedback',
+          value: s.hapticsEnabled,
+          onChanged: (v) => context.read<SettingsProvider>().setHaptics(v),
+        ),
+      ],
+    );
+  }
+}
+
+void _pickSeconds(
+  BuildContext context, {
+  required String title,
+  required List<int> options,
+  required int current,
+  required ValueChanged<int> onPicked,
+}) {
+  showAppSheet<void>(
+    context,
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SheetHeader(title: title),
+          for (final o in options)
+            ListTile(
+              title: Text(o < 60 ? '$o seconds' : '${o ~/ 60} minute${o >= 120 ? 's' : ''}'),
+              trailing: o == current ? Icon(AppIcons.check, color: ctx.colors.accent, size: 18) : null,
+              onTap: () {
+                onPicked(o);
+                Navigator.pop(ctx);
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+}
+
+class _DataSection extends StatelessWidget {
+  const _DataSection();
+
+  Future<void> _eraseVault(BuildContext context) async {
+    final ok = await showConfirmSheet(
+      context,
+      title: 'Erase secure vault?',
+      message: 'All saved card numbers, CVVs and expiry dates on this device will be permanently deleted. Your cards stay in the wallet with last 4 digits only.',
+      confirmLabel: 'Erase vault',
+      icon: AppIcons.keyhole,
+      destructive: true,
+    );
+    if (!ok || !context.mounted) return;
+    final vault = context.read<SecureVaultService>();
+    final status = await vault.authenticate(reason: 'Confirm to erase the vault');
+    if (!status.isSuccess || !context.mounted) return;
+    await vault.clearAll();
+    if (!context.mounted) return;
+    await context.read<WalletProvider>().loadCards();
+    if (context.mounted) AppToast.success(context, message: 'Vault erased');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return SettingsGroup(
+      title: 'Data',
+      children: [
+        SettingsTile(
+          icon: AppIcons.refresh,
+          title: 'Sync wallet',
+          subtitle: 'Refresh cards and catalog data',
+          onTap: () async {
+            await Future.wait([
+              context.read<WalletProvider>().loadCards(isRefresh: true),
+              context.read<CatalogProvider>().refresh(),
+            ]);
+            if (context.mounted) AppToast.success(context, message: 'Up to date');
+          },
+        ),
+        SettingsTile(
+          icon: AppIcons.broom,
+          title: 'Clear cached catalog',
+          subtitle: 'Frees space; re-downloads when needed',
+          onTap: () async {
+            await context.read<CatalogProvider>().clearCache();
+            if (context.mounted) AppToast.success(context, message: 'Cache cleared');
+          },
+        ),
+        SettingsTile(
+          icon: AppIcons.keyhole,
+          title: 'Erase secure vault',
+          subtitle: 'Delete all card numbers & CVVs from this device',
+          iconColor: c.danger,
+          destructive: true,
+          onTap: () => _eraseVault(context),
+        ),
+      ],
+    );
+  }
+}
+
+class _AboutSection extends StatelessWidget {
+  const _AboutSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsGroup(
+      title: 'About',
+      children: [
+        SettingsTile(
+          icon: AppIcons.shield,
+          title: 'How your data is protected',
+          onTap: () => _showProtectionSheet(context),
+        ),
+        SettingsTile(
+          icon: AppIcons.question,
+          title: 'How recommendations work',
+          onTap: () => _showInfoSheet(
+            context,
+            title: 'How recommendations work',
+            points: const [
+              'Pick a category and amount on Home — CreditVance ranks every card in your wallet for that spend.',
+              'Signed-in wallets are ranked by the CreditVance engine; guest wallets are ranked on this device.',
+              'We also show the best card in the market so you know what you might be missing.',
+              'International spends account for forex markup and GST on it.',
+            ],
+          ),
+        ),
+        SettingsTile(
+          icon: AppIcons.document,
+          title: 'Privacy & terms',
+          onTap: () => _showInfoSheet(
+            context,
+            title: 'Privacy & terms',
+            points: const [
+              'We never collect card numbers, CVVs or expiry dates.',
+              'Account data is limited to your name, email and card nicknames / last 4 digits.',
+              'You can erase the on-device vault any time from Account → Data.',
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+void _showProtectionSheet(BuildContext context) {
+  final c = context.colors;
+  final items = [
+    (AppIcons.keyhole, 'Hardware encryption', 'Card numbers and CVVs are encrypted with keys held in Android Keystore / iOS Secure Enclave.'),
+    (AppIcons.fingerprint, 'Biometric gate', 'Every copy or reveal needs your fingerprint or face.'),
+    (AppIcons.clipboard, 'Self-clearing clipboard', 'Copied details are marked sensitive and wiped automatically.'),
+    (AppIcons.screenshot, 'Screen protection', 'Screenshots and screen recording are blocked; the app switcher is blurred.'),
+    (AppIcons.lock, 'Zero-knowledge', 'Sensitive card data is never sent to our servers — not even encrypted.'),
+  ];
+  showAppSheet<void>(
+    context,
+    builder: (ctx) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('How your data is protected', style: ctx.text.headlineSmall),
+            const SizedBox(height: 16),
+            for (final (icon, title, body) in items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    IconHalo(icon: icon, color: c.success, size: 34, iconSize: 17),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: ctx.text.titleSmall),
+                          const SizedBox(height: 2),
+                          Text(body, style: ctx.text.bodySmall),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+void _showInfoSheet(BuildContext context, {required String title, required List<String> points}) {
+  showAppSheet<void>(
+    context,
+    builder: (ctx) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: ctx.text.headlineSmall),
+            const SizedBox(height: 12),
+            for (final p in points)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Icon(AppIcons.checkCircle, size: 13, color: ctx.colors.success),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(p, style: ctx.text.bodyMedium)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _SignOutButton extends StatelessWidget {
+  const _SignOutButton();
+
+  Future<void> _signOut(BuildContext context) async {
+    final isGuest = context.read<AuthProvider>().isGuest;
+    final ok = await showConfirmSheet(
+      context,
+      title: isGuest ? 'Reset this device?' : 'Sign out?',
+      message: isGuest
+          ? 'Your wallet and all saved card details on this device will be deleted.'
+          : 'Saved card numbers and CVVs will be erased from this device. Your cards stay in your account and can be re-secured after signing in.',
+      confirmLabel: isGuest ? 'Reset' : 'Sign out',
+      icon: AppIcons.signOut,
+      destructive: true,
+    );
+    if (!ok || !context.mounted) return;
+    final wallet = context.read<WalletProvider>();
+    final vault = context.read<SecureVaultService>();
+    final auth = context.read<AuthProvider>();
+    await wallet.reset(eraseLocal: true);
+    await vault.clearAll();
+    await auth.logout();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isGuest = context.select<AuthProvider, bool>((a) => a.isGuest);
+    return AppButton(
+      label: isGuest ? 'Reset device' : 'Sign out',
+      icon: AppIcons.signOut,
+      variant: AppButtonVariant.danger,
+      onPressed: () => _signOut(context),
     );
   }
 }

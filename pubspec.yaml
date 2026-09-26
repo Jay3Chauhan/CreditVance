@@ -56,6 +56,10 @@ dependencies:
   skeletonizer: 3.0.0
   toastification: ^3.2.0
   flutter_svg: ^2.3.0
+  animations: ^2.2.0
+  flutter_slidable: ^4.0.3
+  fl_chart: ^1.2.0
+  lucide_icons_flutter: ^3.1.20
 
 dev_dependencies:
   flutter_test:

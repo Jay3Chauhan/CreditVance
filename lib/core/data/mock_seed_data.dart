@@ -23,16 +23,16 @@ class MockSeedData {
   ];
 
   static const List<CategoryModel> categories = [
-    CategoryModel(id: 1, name: 'Dining', slug: 'dining', iconName: 'dining', description: 'Restaurants, cafes, food deliveries & Swiggy/Zomato'),
-    CategoryModel(id: 2, name: 'Flights', slug: 'flights', iconName: 'flights', description: 'Domestic & International flight bookings'),
-    CategoryModel(id: 3, name: 'Fuel', slug: 'fuel', iconName: 'fuel', description: 'Petrol pumps, EV charging, 1% surcharge waivers'),
-    CategoryModel(id: 4, name: 'Grocery', slug: 'grocery', iconName: 'grocery', description: 'Supermarkets, Blinkit, Zepto & BigBasket'),
-    CategoryModel(id: 5, name: 'Online Shopping', slug: 'shopping', iconName: 'shopping', description: 'Amazon, Flipkart, Myntra & e-commerce'),
-    CategoryModel(id: 6, name: 'Travel & Hotels', slug: 'travel', iconName: 'travel', description: 'Hotels, homestays, Airbnb & car rentals'),
-    CategoryModel(id: 7, name: 'Rent', slug: 'rent', iconName: 'rent', description: 'House rent & commercial lease transfers'),
-    CategoryModel(id: 8, name: 'Utilities', slug: 'utilities', iconName: 'utilities', description: 'Electricity, water, gas & telecom recharge'),
-    CategoryModel(id: 9, name: 'Entertainment', slug: 'entertainment', iconName: 'entertainment', description: 'Movies, BookMyShow, OTT subscriptions'),
-    CategoryModel(id: 10, name: 'International Forex', slug: 'international', iconName: 'international', description: 'Overseas currency transactions with low markup'),
+    CategoryModel(id: 1, name: 'Dining', slug: 'Dining', iconName: 'dining', description: 'Restaurants, cafes & food delivery'),
+    CategoryModel(id: 2, name: 'Flights', slug: 'Flights', iconName: 'flights', description: 'Domestic & international flights'),
+    CategoryModel(id: 3, name: 'Fuel', slug: 'Fuel', iconName: 'fuel', description: 'Petrol pumps & EV charging'),
+    CategoryModel(id: 4, name: 'Grocery', slug: 'Grocery', iconName: 'grocery', description: 'Supermarkets & quick commerce'),
+    CategoryModel(id: 5, name: 'Online Shopping', slug: 'Online Shopping', iconName: 'shopping', description: 'Amazon, Flipkart, Myntra'),
+    CategoryModel(id: 7, name: 'Travel', slug: 'Travel', iconName: 'travel', description: 'Hotels, stays & car rentals'),
+    CategoryModel(id: 6, name: 'Rent', slug: 'Rent', iconName: 'rent', description: 'House rent payments'),
+    CategoryModel(id: 8, name: 'Utilities', slug: 'Utilities', iconName: 'utilities', description: 'Electricity, water, gas & recharges'),
+    CategoryModel(id: 16, name: 'UPI', slug: 'UPI', iconName: 'upi', description: 'RuPay credit on UPI'),
+    CategoryModel(id: 13, name: 'International', slug: 'International', iconName: 'international', description: 'Overseas & foreign currency spends'),
   ];
 
   static final List<CatalogCardModel> sampleCards = [
