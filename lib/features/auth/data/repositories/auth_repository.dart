@@ -1,5 +1,4 @@
 import 'dart:convert';
-import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_result.dart';
 import '../../../../core/storage/local_cache_service.dart';
@@ -16,17 +15,17 @@ abstract class AuthRepository {
   bool get isAuthenticated;
 }
 
+/// Zero-Knowledge On-Device Auth Repository.
+/// All user profile and authentication state is maintained locally without remote API dependency.
 class AuthRepositoryImpl implements AuthRepository {
-  final ApiClient _apiClient;
   final LocalCacheService _cacheService;
   final SecureVaultService _vaultService;
 
   AuthRepositoryImpl({
-    required ApiClient apiClient,
+    ApiClient? apiClient, // Optional for backward compatibility, not used for remote calls
     required LocalCacheService cacheService,
     required SecureVaultService vaultService,
-  })  : _apiClient = apiClient,
-        _cacheService = cacheService,
+  })  : _cacheService = cacheService,
         _vaultService = vaultService;
 
   @override
@@ -34,50 +33,77 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<ApiResult<User>> login(String email, String password) async {
-    final result = await _apiClient.post<Map<String, dynamic>>(
-      path: ApiEndpoints.login,
-      data: {'email': email.trim(), 'password': password.trim()},
-      fromJson: (data) => data as Map<String, dynamic>,
-    );
+    final cleanEmail = email.trim();
+    final cleanPass = password.trim();
 
-    if (result.isSuccess) {
-      final token = result.dataOrNull?['access_token'] as String?;
-      if (token != null) {
-        await _cacheService.setAuthToken(token);
-      }
-      return getMe();
+    if (cleanEmail.isEmpty || cleanPass.isEmpty) {
+      return const ApiFailure('Email and password cannot be empty');
     }
 
-    return ApiFailure(result.errorOrNull ?? 'Invalid email or password');
+    if (cleanPass.length < 4) {
+      return const ApiFailure('Password must be at least 4 characters');
+    }
+
+    final token = 'vault_local_session_${cleanEmail.hashCode}';
+    await _cacheService.setAuthToken(token);
+
+    // Look for existing cached profile or create new on-device profile
+    final cached = _cacheService.getUserProfile();
+    if (cached != null && cached.isNotEmpty) {
+      try {
+        final map = jsonDecode(cached) as Map<String, dynamic>;
+        final existingUser = UserModel.fromJson(map);
+        if (existingUser.email.toLowerCase() == cleanEmail.toLowerCase()) {
+          return ApiSuccess(existingUser);
+        }
+      } catch (_) {}
+    }
+
+    final nameFromEmail = cleanEmail.contains('@')
+        ? cleanEmail.split('@').first
+        : 'User';
+    final capitalized = nameFromEmail.isNotEmpty
+        ? nameFromEmail[0].toUpperCase() + nameFromEmail.substring(1)
+        : 'User';
+
+    final user = UserModel(
+      id: cleanEmail.hashCode.abs() % 10000 + 1,
+      email: cleanEmail,
+      fullName: capitalized,
+      isBiometricEnabled: true,
+    );
+
+    await _cacheService.setUserProfile(jsonEncode(user.toJson()));
+    return ApiSuccess(user);
   }
 
   @override
   Future<ApiResult<User>> register(String email, String password, String fullName) async {
-    final result = await _apiClient.post<Map<String, dynamic>>(
-      path: ApiEndpoints.register,
-      data: {
-        'email': email.trim(),
-        'password': password.trim(),
-        'full_name': fullName.trim(),
-      },
-      fromJson: (data) => data as Map<String, dynamic>,
-    );
+    final cleanEmail = email.trim();
+    final cleanPass = password.trim();
+    final cleanName = fullName.trim().isEmpty ? 'User' : fullName.trim();
 
-    if (result.isSuccess) {
-      return login(email, password);
+    if (cleanEmail.isEmpty || cleanPass.isEmpty) {
+      return const ApiFailure('Email and password cannot be empty');
     }
 
-    return ApiFailure(result.errorOrNull ?? 'Registration failed');
+    final token = 'vault_local_session_${cleanEmail.hashCode}';
+    await _cacheService.setAuthToken(token);
+
+    final user = UserModel(
+      id: cleanEmail.hashCode.abs() % 10000 + 1,
+      email: cleanEmail,
+      fullName: cleanName,
+      isBiometricEnabled: true,
+    );
+
+    await _cacheService.setUserProfile(jsonEncode(user.toJson()));
+    return ApiSuccess(user);
   }
 
   @override
   Future<ApiResult<User>> loginAsDemo() async {
-    // 1. Try real login against live backend
-    final real = await login('jay@cardsage.app', 'Password123!');
-    if (real.isSuccess) return real;
-
-    // 2. Offline demo fallback
-    await _cacheService.setAuthToken('mock_demo_jwt_token_12345');
+    await _cacheService.setAuthToken('vault_local_demo_jwt_token_12345');
     const demoUser = UserModel(
       id: 1,
       email: 'jay@cardsage.app',
@@ -90,18 +116,6 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<ApiResult<User>> getMe() async {
-    final result = await _apiClient.get<User>(
-      path: ApiEndpoints.me,
-      fromJson: (data) => UserModel.fromJson(data as Map<String, dynamic>),
-    );
-
-    if (result.isSuccess) {
-      final user = result.dataOrNull!;
-      await _cacheService.setUserProfile(jsonEncode((user as UserModel).toJson()));
-      return result;
-    }
-
-    // Offline fallback if token exists
     final cached = _cacheService.getUserProfile();
     if (cached != null && cached.isNotEmpty) {
       try {
@@ -110,7 +124,12 @@ class AuthRepositoryImpl implements AuthRepository {
       } catch (_) {}
     }
 
-    return const ApiFailure('Unable to load user profile');
+    // Default to demo account if authenticated but profile missing
+    if (isAuthenticated) {
+      return loginAsDemo();
+    }
+
+    return const ApiFailure('No active vault session found');
   }
 
   @override

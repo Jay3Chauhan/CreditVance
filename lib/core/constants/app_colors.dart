@@ -77,4 +77,6 @@ class AppColors {
     end: Alignment.bottomRight,
     colors: [Color(0x2EFFFFFF), Color(0x0AFFFFFF)],
   );
+
+  static const Color obsidianGlow = Color(0x14DFB76C); // 8% gold — tappable card hover
 }

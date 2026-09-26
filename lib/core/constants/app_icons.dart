@@ -72,4 +72,5 @@ class AppIcons {
   static const IconData rewardPoints = Icons.stars_rounded;
   static const IconData feeFree = Icons.money_off_rounded;
   static const IconData star = CupertinoIcons.star_fill;
+  static const IconData contactless = Icons.contactless_rounded;
 }

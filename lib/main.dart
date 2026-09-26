@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:toastification/toastification.dart';
 
 import 'core/constants/app_strings.dart';
 import 'core/network/api_client.dart';
@@ -123,11 +124,13 @@ class CardSageApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppStrings.appName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      home: home ?? const MainShellScreen(),
+    return ToastificationWrapper(
+      child: MaterialApp(
+        title: AppStrings.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        home: home ?? const MainShellScreen(),
+      ),
     );
   }
 }

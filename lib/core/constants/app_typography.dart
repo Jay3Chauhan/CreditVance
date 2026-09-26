@@ -8,7 +8,7 @@ class AppTypography {
   const AppTypography._();
 
   static TextStyle get displayLarge => GoogleFonts.plusJakartaSans(
-        fontSize: 32,
+        fontSize: 30,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
         letterSpacing: -0.8,
@@ -16,7 +16,7 @@ class AppTypography {
       );
 
   static TextStyle get displayMedium => GoogleFonts.plusJakartaSans(
-        fontSize: 26,
+        fontSize: 24,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
         letterSpacing: -0.5,
@@ -24,7 +24,7 @@ class AppTypography {
       );
 
   static TextStyle get headlineLarge => GoogleFonts.plusJakartaSans(
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
         letterSpacing: -0.3,
@@ -32,7 +32,7 @@ class AppTypography {
       );
 
   static TextStyle get headlineMedium => GoogleFonts.plusJakartaSans(
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
         letterSpacing: -0.2,
@@ -40,7 +40,7 @@ class AppTypography {
       );
 
   static TextStyle get titleMedium => GoogleFonts.plusJakartaSans(
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
         letterSpacing: 0,
@@ -48,7 +48,7 @@ class AppTypography {
       );
 
   static TextStyle get titleSmall => GoogleFonts.plusJakartaSans(
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
         letterSpacing: 0.1,
@@ -56,7 +56,7 @@ class AppTypography {
       );
 
   static TextStyle get bodyLarge => GoogleFonts.plusJakartaSans(
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: FontWeight.w400,
         color: AppColors.textSecondary,
         letterSpacing: 0.15,
@@ -64,7 +64,7 @@ class AppTypography {
       );
 
   static TextStyle get bodyMedium => GoogleFonts.plusJakartaSans(
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: FontWeight.w400,
         color: AppColors.textSecondary,
         letterSpacing: 0.25,
@@ -72,7 +72,7 @@ class AppTypography {
       );
 
   static TextStyle get bodySmall => GoogleFonts.plusJakartaSans(
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: FontWeight.w400,
         color: AppColors.textTertiary,
         letterSpacing: 0.4,
@@ -80,7 +80,7 @@ class AppTypography {
       );
 
   static TextStyle get labelLarge => GoogleFonts.plusJakartaSans(
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
         letterSpacing: 0.1,
@@ -88,7 +88,7 @@ class AppTypography {
       );
 
   static TextStyle get labelSmall => GoogleFonts.plusJakartaSans(
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
         letterSpacing: 0.5,
@@ -97,7 +97,7 @@ class AppTypography {
 
   /// Specialized Monospace / Card Number typography
   static TextStyle get cardNumber => GoogleFonts.spaceGrotesk(
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
         letterSpacing: 2.2,
@@ -106,14 +106,14 @@ class AppTypography {
 
   /// Currency & Returns numeric typography
   static TextStyle get currencyLarge => GoogleFonts.spaceGrotesk(
-        fontSize: 34,
+        fontSize: 32,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
         letterSpacing: -1.0,
       );
 
   static TextStyle get currencyMedium => GoogleFonts.spaceGrotesk(
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
         letterSpacing: -0.5,

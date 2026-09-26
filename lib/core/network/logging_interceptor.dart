@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -10,7 +11,7 @@ class LoggingInterceptor extends Interceptor {
   void _log(String line) {
     if (kDebugMode) {
       // ignore: avoid_print
-      print(line);
+      log(line);
     }
   }
 
@@ -56,7 +57,9 @@ class LoggingInterceptor extends Interceptor {
 
       _log('┌─── [CARDSAGE HTTP RESPONSE: $code] ──────────────────────────────────');
       _log('│ $icon $uri');
-      _log('│ 📦 Data: ${_formatJson(response.data)}');
+            _log('│ 📦 Data: ${response.data}');
+
+      // _log('│ 📦 Data: ${_formatJson(response.data)}');
       _log('└──────────────────────────────────────────────────────────────────────');
     }
     return handler.next(response);

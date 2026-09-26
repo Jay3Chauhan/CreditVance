@@ -7,6 +7,7 @@ import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/card_formatter.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/utils/app_toast.dart';
 import '../../../../core/utils/haptics_helper.dart';
 import '../../../../core/widgets/luxury_badge.dart';
 import '../../../../core/widgets/luxury_button.dart';
@@ -514,7 +515,6 @@ class AddCardScreen extends StatelessWidget {
 
                     isSavingNotifier.value = true;
                     final walletProvider = context.read<WalletProvider>();
-                    final scaffoldMessenger = ScaffoldMessenger.of(context);
                     final nav = Navigator.of(context);
 
                     final last4 = cleanPan.length >= 4
@@ -535,14 +535,12 @@ class AddCardScreen extends StatelessWidget {
 
                     isSavingNotifier.value = false;
 
-                    if (success) {
-                      HapticsHelper.medium();
+                    if (success && context.mounted) {
                       nav.pop();
-                      scaffoldMessenger.showSnackBar(
-                        SnackBar(
-                          content: Text('${targetCard.name} securely added to device vault!'),
-                          backgroundColor: AppColors.emerald,
-                        ),
+                      AppToast.success(
+                        context,
+                        title: 'Card Secured',
+                        message: '${targetCard.name} securely added to device vault!',
                       );
                     }
                   },

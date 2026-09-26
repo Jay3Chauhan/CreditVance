@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/utils/haptics_helper.dart';
+import '../../../../core/utils/app_toast.dart';
 import '../../../../core/widgets/luxury_badge.dart';
 import '../../../../core/widgets/luxury_glass_card.dart';
+import '../../../../core/widgets/network_logo_widget.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../domain/entities/recommendation.dart';
 
 /// Glowing recommendation card highlighting optimal return at checkout.
+/// Entrance: slide-up + fade-in via flutter_animate.
 class RecommendationCard extends StatelessWidget {
   final AdvisorRecommendation recommendation;
 
@@ -36,7 +39,7 @@ class RecommendationCard extends StatelessWidget {
               isSmall: true,
             ),
           ],
-        ),
+        ).animate().fadeIn(duration: 300.ms),
 
         const SizedBox(height: AppDimensions.p12),
 
@@ -63,9 +66,16 @@ class RecommendationCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  Text(
-                    top.network,
-                    style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      NetworkLogoWidget(network: top.network, height: 12),
+                      const SizedBox(width: 5),
+                      Text(
+                        top.network,
+                        style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -156,9 +166,10 @@ class RecommendationCard extends StatelessWidget {
                         onPressed: () async {
                           final success = await wallet.copyCardNumber(matchingCard.id);
                           if (success && context.mounted) {
-                            HapticsHelper.medium();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Card copied! Auto-clears in 30s')),
+                            AppToast.success(
+                              context,
+                              title: 'Card Copied',
+                              message: 'Auto-clears from clipboard in 30s',
                             );
                           }
                         },
@@ -170,15 +181,16 @@ class RecommendationCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
+        ).animate().fadeIn(duration: 400.ms, delay: 50.ms).slideY(begin: 0.12, end: 0, curve: Curves.easeOutCubic),
 
         // Runners-Up (Alternatives)
         if (recommendation.runnersUp.isNotEmpty) ...[
           const SizedBox(height: AppDimensions.p20),
-          Text('Alternative Options', style: AppTypography.titleSmall),
+          Text('Alternative Options', style: AppTypography.titleSmall)
+              .animate(delay: 150.ms).fadeIn(),
           const SizedBox(height: AppDimensions.p12),
-          ...recommendation.runnersUp.map(
-            (alt) => Padding(
+          ...recommendation.runnersUp.asMap().entries.map(
+            (entry) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: LuxuryGlassCard(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -189,11 +201,11 @@ class RecommendationCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            alt.cardName,
+                            entry.value.cardName,
                             style: AppTypography.titleSmall.copyWith(fontSize: 14),
                           ),
                           Text(
-                            alt.bankName,
+                            entry.value.bankName,
                             style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
                           ),
                         ],
@@ -203,21 +215,21 @@ class RecommendationCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          CurrencyFormatter.format(alt.estimatedValue),
+                          CurrencyFormatter.format(entry.value.estimatedValue),
                           style: AppTypography.titleSmall.copyWith(
                             color: AppColors.emeraldLight,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         Text(
-                          '${CurrencyFormatter.formatPercentage(alt.returnPercentage)} return',
+                          '${CurrencyFormatter.formatPercentage(entry.value.returnPercentage)} return',
                           style: AppTypography.labelSmall.copyWith(fontSize: 10),
                         ),
                       ],
                     ),
                   ],
                 ),
-              ),
+              ).animate(delay: Duration(milliseconds: 200 + entry.key * 60)).fadeIn().slideX(begin: 0.05, end: 0),
             ),
           ),
         ],

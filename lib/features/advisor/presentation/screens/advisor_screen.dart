@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -38,250 +39,284 @@ class AdvisorScreen extends StatelessWidget {
       ),
       body: Consumer<AdvisorProvider>(
         builder: (context, advisor, _) {
-          return SingleChildScrollView(
-            padding: AppDimensions.screenPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Category Picker Section
-                Text('Where are you spending?', style: AppTypography.titleSmall),
-                const SizedBox(height: AppDimensions.p12),
+          return RefreshIndicator(
+            color: AppColors.gold,
+            backgroundColor: AppColors.surfaceSecondary,
+            onRefresh: () async {
+              await Future.wait([
+                advisor.refresh(),
+                context.read<CatalogProvider>().refresh(),
+              ]);
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: AppDimensions.screenPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Section label
+                  Text('Where are you spending?', style: AppTypography.titleSmall)
+                      .animate()
+                      .fadeIn(duration: 300.ms),
+                  const SizedBox(height: AppDimensions.p12),
 
-                Consumer<CatalogProvider>(
-                  builder: (context, catalog, _) {
-                    final categories = catalog.categories;
-                    return SizedBox(
-                      height: 84,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: categories.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 10),
-                        itemBuilder: (context, idx) {
-                          final cat = categories[idx];
-                          final isSelected =
-                              advisor.selectedCategory.toLowerCase() == cat.slug.toLowerCase();
+                  // Category Pill Chips — horizontal pill cards replacing old squares
+                  Consumer<CatalogProvider>(
+                    builder: (context, catalog, _) {
+                      final categories = catalog.categories;
+                      return SizedBox(
+                        height: 44,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: categories.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, idx) {
+                            final cat = categories[idx];
+                            final isSelected =
+                                advisor.selectedCategory.toLowerCase() == cat.slug.toLowerCase();
 
-                          IconData iconData;
-                          switch (cat.slug.toLowerCase()) {
-                            case 'dining':
-                              iconData = AppIcons.dining;
-                              break;
-                            case 'education':
-                              iconData = AppIcons.education;
-                              break;
-                            case 'flights':
-                              iconData = AppIcons.flights;
-                              break;
-                            case 'fuel':
-                              iconData = AppIcons.fuel;
-                              break;
-                            case 'gift cards':
-                              iconData = AppIcons.milestone;
-                              break;
-                            case 'grocery':
-                              iconData = AppIcons.grocery;
-                              break;
-                            case 'insurance':
-                              iconData = AppIcons.shieldCheck;
-                              break;
-                            case 'international':
-                              iconData = AppIcons.international;
-                              break;
-                            case 'online shopping':
-                            case 'shopping':
-                              iconData = AppIcons.shopping;
-                              break;
-                            case 'rent':
-                              iconData = AppIcons.rent;
-                              break;
-                            case 'travel':
-                              iconData = AppIcons.travel;
-                              break;
-                            case 'upi':
-                              iconData = AppIcons.navWallet;
-                              break;
-                            case 'utilities':
-                              iconData = AppIcons.utilities;
-                              break;
-                            default:
-                              iconData = AppIcons.navAdvisor;
-                          }
+                            final iconData = _iconForCategory(cat.slug);
 
-                          return GestureDetector(
-                            onTap: () {
-                              HapticsHelper.selection();
-                              advisor.setCategory(cat.slug);
-                            },
-                            child: AnimatedContainer(
-                              duration: AppDimensions.fastAnim,
-                              width: 80,
-                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.gold.withOpacity(0.18)
-                                    : AppColors.surfaceSecondary,
-                                borderRadius: AppDimensions.roundedMd,
-                                border: Border.all(
-                                  color: isSelected ? AppColors.gold : AppColors.borderSubtle,
-                                  width: isSelected ? 1.5 : 1.0,
+                            return GestureDetector(
+                              onTap: () {
+                                HapticsHelper.selection();
+                                advisor.setCategory(cat.slug);
+                              },
+                              child: AnimatedContainer(
+                                duration: AppDimensions.fastAnim,
+                                curve: Curves.easeOut,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
                                 ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    iconData,
-                                    size: 24,
-                                    color: isSelected ? AppColors.gold : AppColors.textSecondary,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.gold.withOpacity(0.18)
+                                      : AppColors.surfaceSecondary,
+                                  borderRadius: AppDimensions.roundedFull,
+                                  border: Border.all(
+                                    color: isSelected ? AppColors.gold : AppColors.borderSubtle,
+                                    width: isSelected ? 1.5 : 1.0,
                                   ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    cat.name,
-                                    style: AppTypography.labelSmall.copyWith(
-                                      color: isSelected ? AppColors.goldLight : AppColors.textSecondary,
-                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                      fontSize: 10,
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: AppColors.gold.withOpacity(0.2),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      iconData,
+                                      size: 16,
+                                      color: isSelected ? AppColors.gold : AppColors.textSecondary,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: AppDimensions.p24),
-
-                // Spend Amount Section with Slider & Quick Chips
-                LuxuryGlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Transaction Spend', style: AppTypography.titleSmall),
-                          Text(
-                            CurrencyFormatter.format(advisor.spendAmount),
-                            style: AppTypography.currencyMedium.copyWith(color: AppColors.goldLight),
-                          ),
-                        ],
-                      ),
-                      Slider(
-                        value: advisor.spendAmount,
-                        min: 100,
-                        max: 100000,
-                        divisions: 100,
-                        activeColor: AppColors.gold,
-                        inactiveColor: AppColors.surfaceElevated,
-                        onChanged: (val) {
-                          advisor.setSpendAmount(val);
-                        },
-                      ),
-                      const SizedBox(height: AppDimensions.p8),
-
-                      // Quick Amount Chips
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: quickAmounts.map((amt) {
-                            final isCurrent = (advisor.spendAmount - amt).abs() < 50;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: ChoiceChip(
-                                selected: isCurrent,
-                                label: Text(CurrencyFormatter.format(amt)),
-                                labelStyle: AppTypography.labelSmall.copyWith(
-                                  color: isCurrent ? AppColors.canvasDark : AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      cat.name,
+                                      style: AppTypography.labelSmall.copyWith(
+                                        color: isSelected ? AppColors.goldLight : AppColors.textSecondary,
+                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                backgroundColor: AppColors.surfaceElevated,
-                                selectedColor: AppColors.gold,
-                                side: BorderSide(
-                                  color: isCurrent ? AppColors.gold : AppColors.borderSubtle,
-                                ),
-                                onSelected: (_) {
-                                  HapticsHelper.selection();
-                                  advisor.setSpendAmount(amt);
-                                },
                               ),
+                            ).animate(
+                              delay: Duration(milliseconds: idx * 35),
+                            ).fadeIn(duration: 300.ms).scale(
+                              begin: const Offset(0.88, 0.88),
+                              end: const Offset(1.0, 1.0),
+                              curve: Curves.easeOutBack,
                             );
-                          }).toList(),
+                          },
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                ),
 
-                const SizedBox(height: AppDimensions.p16),
+                  const SizedBox(height: AppDimensions.p24),
 
-                // International Forex Toggle
-                LuxuryGlassCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      const Icon(AppIcons.international, color: AppColors.sapphire, size: 22),
-                      const SizedBox(width: AppDimensions.p12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  // Spend Amount Section with Slider & Quick Chips
+                  LuxuryGlassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('International Currency (Forex)', style: AppTypography.titleSmall),
-                            Text(
-                              'Optimizes for lowest forex markup + reward delta',
-                              style: AppTypography.bodySmall,
+                            Text('Transaction Spend', style: AppTypography.titleSmall),
+                            AnimatedSwitcher(
+                              duration: AppDimensions.fastAnim,
+                              child: Text(
+                                CurrencyFormatter.format(advisor.spendAmount),
+                                key: ValueKey(advisor.spendAmount.round()),
+                                style: AppTypography.currencyMedium.copyWith(
+                                  color: AppColors.goldLight,
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      Switch(
-                        value: advisor.isInternational,
-                        activeColor: AppColors.gold,
-                        onChanged: (val) {
-                          HapticsHelper.selection();
-                          advisor.setInternational(val);
-                        },
-                      ),
-                    ],
+                        SliderTheme(
+                          data: SliderThemeData(
+                            thumbColor: AppColors.gold,
+                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                            overlayColor: AppColors.gold.withOpacity(0.15),
+                            overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+                            activeTrackColor: AppColors.gold,
+                            inactiveTrackColor: AppColors.surfaceElevated,
+                            trackHeight: 3.0,
+                          ),
+                          child: Slider(
+                            value: advisor.spendAmount,
+                            min: 100,
+                            max: 100000,
+                            divisions: 100,
+                            onChanged: (val) {
+                              advisor.setSpendAmount(val);
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: AppDimensions.p8),
+
+                        // Quick Amount Chips
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: quickAmounts.map((amt) {
+                              final isCurrent = (advisor.spendAmount - amt).abs() < 50;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: ChoiceChip(
+                                  selected: isCurrent,
+                                  label: Text(CurrencyFormatter.format(amt)),
+                                  labelStyle: AppTypography.labelSmall.copyWith(
+                                    color: isCurrent ? AppColors.canvasDark : AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  backgroundColor: AppColors.surfaceElevated,
+                                  selectedColor: AppColors.gold,
+                                  side: BorderSide(
+                                    color: isCurrent ? AppColors.gold : AppColors.borderSubtle,
+                                  ),
+                                  onSelected: (_) {
+                                    HapticsHelper.selection();
+                                    advisor.setSpendAmount(amt);
+                                  },
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ).animate(delay: 100.ms).fadeIn(duration: 350.ms).slideY(begin: 0.08, end: 0),
+
+                  const SizedBox(height: AppDimensions.p16),
+
+                  // International Forex Toggle
+                  LuxuryGlassCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        const Icon(AppIcons.international, color: AppColors.sapphire, size: 22),
+                        const SizedBox(width: AppDimensions.p12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('International Currency (Forex)', style: AppTypography.titleSmall),
+                              Text(
+                                'Optimizes for lowest forex markup + reward delta',
+                                style: AppTypography.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: advisor.isInternational,
+                          activeColor: AppColors.gold,
+                          onChanged: (val) {
+                            HapticsHelper.selection();
+                            advisor.setInternational(val);
+                          },
+                        ),
+                      ],
+                    ),
+                  ).animate(delay: 180.ms).fadeIn(duration: 350.ms).slideY(begin: 0.08, end: 0),
+
+                  const SizedBox(height: AppDimensions.p24),
+
+                  // Recommendation Outcome
+                  Builder(
+                    builder: (context) {
+                      if (advisor.state.isLoading) {
+                        return const ShimmerCardSkeleton(height: 220);
+                      }
+
+                      if (advisor.state.isError && advisor.recommendation == null) {
+                        return ErrorStateView(
+                          message: advisor.errorMessage ?? 'Failed to compute recommendation',
+                          onRetry: () => advisor.fetchRecommendation(),
+                        );
+                      }
+
+                      if (advisor.recommendation != null) {
+                        return RecommendationCard(recommendation: advisor.recommendation!);
+                      }
+
+                      return const SizedBox.shrink();
+                    },
                   ),
-                ),
 
-                const SizedBox(height: AppDimensions.p24),
-
-                // Recommendation Outcome
-                Builder(
-                  builder: (context) {
-                    if (advisor.state.isLoading) {
-                      return const ShimmerCardSkeleton(height: 220);
-                    }
-
-                    if (advisor.state.isError && advisor.recommendation == null) {
-                      return ErrorStateView(
-                        message: advisor.errorMessage ?? 'Failed to compute recommendation',
-                        onRetry: () => advisor.fetchRecommendation(),
-                      );
-                    }
-
-                    if (advisor.recommendation != null) {
-                      return RecommendationCard(recommendation: advisor.recommendation!);
-                    }
-
-                    return const SizedBox.shrink();
-                  },
-                ),
-
-                const SizedBox(height: AppDimensions.p32),
-              ],
+                  const SizedBox(height: AppDimensions.p32),
+                ],
+              ),
             ),
           );
         },
       ),
     );
+  }
+
+  static IconData _iconForCategory(String slug) {
+    switch (slug.toLowerCase()) {
+      case 'dining':
+        return AppIcons.dining;
+      case 'education':
+        return AppIcons.education;
+      case 'flights':
+        return AppIcons.flights;
+      case 'fuel':
+        return AppIcons.fuel;
+      case 'gift cards':
+        return AppIcons.milestone;
+      case 'grocery':
+        return AppIcons.grocery;
+      case 'insurance':
+        return AppIcons.shieldCheck;
+      case 'international':
+        return AppIcons.international;
+      case 'online shopping':
+      case 'shopping':
+        return AppIcons.shopping;
+      case 'rent':
+        return AppIcons.rent;
+      case 'travel':
+        return AppIcons.travel;
+      case 'upi':
+        return AppIcons.navWallet;
+      case 'utilities':
+        return AppIcons.utilities;
+      default:
+        return AppIcons.navAdvisor;
+    }
   }
 }

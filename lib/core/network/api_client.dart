@@ -12,6 +12,7 @@ class ApiClient {
   late final Dio _dio;
   final LocalCacheService _cacheService;
   final NetworkInfo _networkInfo;
+  NetworkInfo get networkInfo => _networkInfo;
 
   ApiClient({
     required LocalCacheService cacheService,

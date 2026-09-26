@@ -42,6 +42,11 @@ class CalculatorProvider extends ChangeNotifier {
     await calculate();
   }
 
+  Future<void> refresh() async {
+    _setState(ViewState.refreshing);
+    await calculate();
+  }
+
   void setSelectedCard(int id) {
     if (_selectedCardId == id) return;
     _selectedCardId = id;

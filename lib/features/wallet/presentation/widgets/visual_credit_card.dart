@@ -6,6 +6,7 @@ import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/card_formatter.dart';
 import '../../../../core/utils/haptics_helper.dart';
+import '../../../../core/widgets/network_logo_widget.dart';
 import '../../domain/entities/user_card.dart';
 
 /// 3D Realistic Luxury Credit Card component.
@@ -237,7 +238,7 @@ class VisualCreditCard extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(
-                              Icons.contactless_rounded,
+                              AppIcons.contactless,
                               size: 22,
                               color: AppColors.textSecondary,
                             ),
@@ -419,21 +420,37 @@ class VisualCreditCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
 
-                        // Network Badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.35),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: AppColors.borderSubtle, width: 0.5),
-                          ),
-                          child: Text(
-                            card.network,
-                            style: AppTypography.labelSmall.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w800,
-                              fontStyle: FontStyle.italic,
-                              fontSize: 9.5,
+                        // Authentic Payment Network Provider Logo & Label
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.35),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: AppColors.borderSubtle, width: 0.5),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                NetworkLogoWidget(
+                                  network: card.network,
+                                  height: 15,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    card.network,
+                                    style: AppTypography.labelSmall.copyWith(
+                                      color: AppColors.textPrimary,
+                                      fontWeight: FontWeight.w800,
+                                      fontStyle: FontStyle.italic,
+                                      fontSize: 9.0,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

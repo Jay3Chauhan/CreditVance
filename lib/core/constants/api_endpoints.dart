@@ -7,9 +7,9 @@ class ApiEndpoints {
 
   /// Resolves the optimal base URL depending on device platform
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:8000/api/v1';
-    if (Platform.isAndroid) return 'http://10.0.2.2:8000/api/v1';
-    return 'http://localhost:8000/api/v1';
+    if (kIsWeb) return 'https://credit.jaychauhan.tech/api/v1';
+    if (Platform.isAndroid) return 'https://credit.jaychauhan.tech/api/v1';
+    return 'https://credit.jaychauhan.tech/api/v1';
   }
 
   // Network Timeout durations

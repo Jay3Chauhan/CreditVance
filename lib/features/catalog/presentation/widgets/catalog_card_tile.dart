@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
@@ -7,14 +8,17 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/luxury_badge.dart';
 import '../../../../core/widgets/luxury_glass_card.dart';
+import '../../../../core/widgets/network_logo_widget.dart';
 import '../../domain/entities/catalog_card.dart';
 import '../screens/card_detail_screen.dart';
 
 /// Card catalog list item showing bank logo, card artwork thumbnail, core perks, fee tier, and return multiplier.
+/// Staggered entrance animation via flutter_animate using [listIndex].
 class CatalogCardTile extends StatelessWidget {
   final CatalogCard card;
+  final int listIndex;
 
-  const CatalogCardTile({super.key, required this.card});
+  const CatalogCardTile({super.key, required this.card, this.listIndex = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -114,10 +118,27 @@ class CatalogCardTile extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              LuxuryBadge(
-                label: card.network,
-                variant: LuxuryBadgeVariant.neutral,
-                isSmall: true,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: AppDimensions.roundedFull,
+                  border: Border.all(color: AppColors.borderSubtle, width: 1.0),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    NetworkLogoWidget(network: card.network, height: 11),
+                    const SizedBox(width: 5),
+                    Text(
+                      card.network,
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               LuxuryBadge(
                 label: card.isLifetimeFree
@@ -160,6 +181,8 @@ class CatalogCardTile extends StatelessWidget {
           ],
         ],
       ),
-    );
+    ).animate(
+      delay: Duration(milliseconds: (listIndex * 45).clamp(0, 500)),
+    ).fadeIn(duration: 350.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic);
   }
 }

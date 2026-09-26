@@ -34,6 +34,12 @@ class AdvisorProvider extends ChangeNotifier {
     await fetchRecommendation();
   }
 
+  /// Pull-to-refresh
+  Future<void> refresh() async {
+    _setState(ViewState.refreshing);
+    await fetchRecommendation();
+  }
+
   void setCategory(String slug) {
     if (_selectedCategory == slug) return;
     _selectedCategory = slug;

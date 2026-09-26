@@ -16,9 +16,9 @@ class AppDimensions {
   static const double p48 = 48.0;
 
   // Insets
-  static const EdgeInsets screenPadding = EdgeInsets.symmetric(horizontal: p20, vertical: p16);
-  static const EdgeInsets screenHorizontal = EdgeInsets.symmetric(horizontal: p20);
-  static const EdgeInsets cardPadding = EdgeInsets.all(p20);
+  static const EdgeInsets screenPadding = EdgeInsets.symmetric(horizontal: p16, vertical: p16);
+  static const EdgeInsets screenHorizontal = EdgeInsets.symmetric(horizontal: p16);
+  static const EdgeInsets cardPadding = EdgeInsets.all(p12);
 
   // Border Radii
   static const double radiusXs = 6.0;
@@ -41,4 +41,5 @@ class AppDimensions {
   static const Duration fastAnim = Duration(milliseconds: 200);
   static const Duration mediumAnim = Duration(milliseconds: 350);
   static const Duration slowAnim = Duration(milliseconds: 600);
+  static const Duration springAnim = Duration(milliseconds: 450);
 }

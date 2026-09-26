@@ -11,7 +11,8 @@ enum LuxuryButtonVariant {
   danger,
 }
 
-/// Premium tactile button widget with gradient styling and micro-interactions.
+/// Premium tactile button widget with gradient styling, press-scale micro-interaction.
+/// Zero setState: uses `ValueNotifier<bool>` for press state.
 class LuxuryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -35,6 +36,7 @@ class LuxuryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isEnabled = onPressed != null && !isLoading;
+    final pressedNotifier = ValueNotifier<bool>(false);
 
     Color backgroundColor;
     Color textColor;
@@ -67,62 +69,74 @@ class LuxuryButton extends StatelessWidget {
     return SizedBox(
       width: width,
       height: height,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isEnabled
-              ? () {
-                  HapticsHelper.light();
-                  onPressed!();
-                }
-              : null,
-          borderRadius: AppDimensions.roundedMd,
-          child: Ink(
-            decoration: BoxDecoration(
-              color: gradient == null ? backgroundColor : null,
-              gradient: gradient,
-              borderRadius: AppDimensions.roundedMd,
-              border: border,
-              boxShadow: variant == LuxuryButtonVariant.primary && isEnabled
-                  ? [
-                      BoxShadow(
-                        color: AppColors.gold.withOpacity(0.2),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      )
-                    ]
-                  : null,
-            ),
-            child: Center(
-              child: isLoading
-                  ? SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        valueColor: AlwaysStoppedAnimation<Color>(textColor),
-                      ),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (icon != null) ...[
-                          Icon(icon, size: 18, color: textColor),
-                          const SizedBox(width: AppDimensions.p8),
-                        ],
-                        Text(
-                          label,
-                          style: AppTypography.labelLarge.copyWith(
-                            color: textColor,
-                            fontWeight: FontWeight.w700,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: pressedNotifier,
+        builder: (context, isPressed, _) {
+          return AnimatedScale(
+            scale: isPressed && isEnabled ? 0.96 : 1.0,
+            duration: const Duration(milliseconds: 80),
+            curve: Curves.easeOut,
+            child: Material(
+              color: Colors.transparent,
+              child: GestureDetector(
+                onTapDown: isEnabled ? (_) => pressedNotifier.value = true : null,
+                onTapUp: isEnabled
+                    ? (_) {
+                        pressedNotifier.value = false;
+                        HapticsHelper.light();
+                        onPressed!();
+                      }
+                    : null,
+                onTapCancel: isEnabled ? () => pressedNotifier.value = false : null,
+                child: Ink(
+                  decoration: BoxDecoration(
+                    color: gradient == null ? backgroundColor : null,
+                    gradient: gradient,
+                    borderRadius: AppDimensions.roundedMd,
+                    border: border,
+                    boxShadow: variant == LuxuryButtonVariant.primary && isEnabled
+                        ? [
+                            BoxShadow(
+                              color: AppColors.gold.withOpacity(isPressed ? 0.35 : 0.2),
+                              blurRadius: isPressed ? 22 : 16,
+                              offset: const Offset(0, 4),
+                            )
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: isLoading
+                        ? SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor: AlwaysStoppedAnimation<Color>(textColor),
+                            ),
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (icon != null) ...[
+                                Icon(icon, size: 18, color: textColor),
+                                const SizedBox(width: AppDimensions.p8),
+                              ],
+                              Text(
+                                label,
+                                style: AppTypography.labelLarge.copyWith(
+                                  color: textColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

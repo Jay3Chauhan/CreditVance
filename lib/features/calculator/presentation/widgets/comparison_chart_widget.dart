@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_typography.dart';
@@ -8,6 +9,7 @@ import '../../../../core/widgets/luxury_glass_card.dart';
 import '../../domain/entities/calculation_result.dart';
 
 /// Visualization of annual savings, net return, and category yield breakdown.
+/// Enhanced with flutter_animate entrance animations and smooth filling progress bars.
 class ComparisonChartWidget extends StatelessWidget {
   final CalculationResult result;
 
@@ -105,15 +107,18 @@ class ComparisonChartWidget extends StatelessWidget {
               ),
             ],
           ),
-        ),
+        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
 
         const SizedBox(height: AppDimensions.p20),
 
         // Category Breakdown
-        Text('Earnings by Vertical', style: AppTypography.titleSmall),
+        Text('Earnings by Vertical', style: AppTypography.titleSmall)
+            .animate(delay: 120.ms).fadeIn(duration: 300.ms),
         const SizedBox(height: AppDimensions.p12),
 
-        ...result.breakdowns.map((cat) {
+        ...result.breakdowns.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final cat = entry.value;
           final percentageOfTotal =
               result.totalRewardValue > 0 ? (cat.earnedRupees / result.totalRewardValue).clamp(0.0, 1.0) : 0.0;
 
@@ -152,20 +157,29 @@ class ComparisonChartWidget extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // Progress bar showing yield contribution
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: percentageOfTotal,
-                      minHeight: 4,
-                      backgroundColor: AppColors.surfaceElevated,
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.gold),
-                    ),
+                  // Animated progress bar showing yield contribution
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0.0, end: percentageOfTotal),
+                    duration: const Duration(milliseconds: 650),
+                    curve: Curves.easeOutCubic,
+                    builder: (ctx, animVal, _) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: animVal,
+                          minHeight: 4,
+                          backgroundColor: AppColors.surfaceElevated,
+                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.gold),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
-          );
+          ).animate(delay: Duration(milliseconds: 180 + idx * 50))
+              .fadeIn(duration: 350.ms)
+              .slideX(begin: 0.05, end: 0, curve: Curves.easeOutCubic);
         }),
       ],
     );
