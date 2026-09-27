@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Spacing, radii, motion and layout tokens for CreditVance.
+/// Spacing, radii, motion and layout tokens for Credvert.
 class AppDimensions {
   const AppDimensions._();
 

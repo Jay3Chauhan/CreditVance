@@ -1,8 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -14,19 +15,12 @@ import '../../../../core/widgets/app_chip.dart';
 import '../../../../core/widgets/app_surface.dart';
 import '../../../../core/widgets/card_thumb.dart';
 import '../../../../core/widgets/section_header.dart';
+import '../../../../core/widgets/state_views.dart';
+import '../../../remote_config/presentation/remote_config_controller.dart';
 import '../../../catalog/presentation/widgets/card_picker_sheet.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../domain/entities/calculation_result.dart';
 import '../providers/calculator_provider.dart';
-
-const _bucketColors = {
-  SpendBucket.dining: AppColors.rose,
-  SpendBucket.travel: AppColors.sapphire,
-  SpendBucket.grocery: AppColors.emerald,
-  SpendBucket.shopping: AppColors.violet,
-  SpendBucket.bills: AppColors.amber,
-  SpendBucket.other: AppColors.teal,
-};
 
 IconData _bucketIcon(SpendBucket b) => AppIcons.forCategory(b.categorySlug);
 
@@ -35,6 +29,17 @@ class CalculatorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final enabled = context.select<RemoteConfigController, bool>((c) => c.config.calculatorEnabled);
+    if (!enabled) {
+      return Padding(
+        padding: EdgeInsets.only(bottom: context.navClearance),
+        child: const EmptyStateView(
+          icon: AppIcons.calculator,
+          title: 'Rewards calculator is paused',
+          message: 'This tool is temporarily unavailable. Your cards and saved spends are unchanged.',
+        ),
+      );
+    }
     final gutter = context.gutter(maxWidth: AppDimensions.wideContentMaxWidth);
     final wide = context.screenWidth - gutter * 2 >= 880;
 
@@ -43,11 +48,13 @@ class CalculatorScreen extends StatelessWidget {
       SizedBox(height: AppDimensions.p12),
       _ResultHero(),
       SizedBox(height: AppDimensions.p12),
-      _BreakdownCard(),
+      _BreakEvenChart(),
+      SizedBox(height: AppDimensions.p12),
+      _BreakdownChart(),
     ];
     const inputs = [
       _PresetStrip(),
-      SizedBox(height: AppDimensions.p12),
+      SizedBox(height: AppDimensions.p10),
       _SpendSliders(),
     ];
 
@@ -57,6 +64,7 @@ class CalculatorScreen extends StatelessWidget {
         slivers: [
           SliverAppBar(
             pinned: true,
+            automaticallyImplyLeading: false,
             titleSpacing: gutter,
             toolbarHeight: 64,
             title: Column(
@@ -162,32 +170,71 @@ class _ResultHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final r = context.watch<CalculatorProvider>().result;
+    final calc = context.watch<CalculatorProvider>();
+    final r = calc.result;
     final positive = r.netBenefit >= 0;
+    final fee = r.feeWaived ? 0.0 : r.annualFee;
+    final total = r.totalRewardValue + fee;
 
     return AppSurface(
-      tone: SurfaceTone.accent,
-      tintColor: positive ? c.success : c.danger,
+      elevated: true,
       padding: const EdgeInsets.all(16),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [c.tint(c.accent, c.isDark ? 0.16 : 0.12), c.surface],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Net value per year', style: context.text.bodySmall),
-          const SizedBox(height: 2),
-          AnimatedAmount(value: r.netBenefit, style: AppTypography.numeric(32, color: positive ? c.success : c.danger)),
-          const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _MiniStat(label: 'Rewards earned', value: r.totalRewardValue)),
+              Expanded(child: Text('You keep every year', style: context.text.bodySmall)),
+              if (r.feeWaived) AppTag(label: 'Fee waived', icon: AppIcons.checkCircle, color: c.success),
+            ],
+          ),
+          const SizedBox(height: 2),
+          AnimatedAmount(value: r.netBenefit, style: AppTypography.numeric(34, color: positive ? c.textPrimary : c.danger)),
+          Text(
+            'On ${CurrencyFormatter.compact(calc.monthlyTotal)} a month · ${CurrencyFormatter.formatPercentage(r.effectiveRoi)} effective return',
+            style: context.text.labelSmall,
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: AppDimensions.roundedFull,
+            child: SizedBox(
+              height: 8,
+              child: total == 0
+                  ? ColoredBox(color: c.surfaceHigh)
+                  : Row(
+                      children: [
+                        Expanded(
+                          flex: math.max(1, (r.totalRewardValue / total * 1000).round()),
+                          child: ColoredBox(color: c.accent),
+                        ),
+                        if (fee > 0) ...[
+                          const SizedBox(width: 2),
+                          Expanded(
+                            flex: math.max(1, (fee / total * 1000).round()),
+                            child: ColoredBox(color: c.borderStrong),
+                          ),
+                        ],
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _Legend(color: c.accent, label: 'Rewards', value: r.totalRewardValue)),
               Expanded(
-                child: _MiniStat(
+                child: _Legend(
+                  color: c.borderStrong,
                   label: r.feeWaived ? 'Fee (waived)' : 'Annual fee',
-                  value: r.annualFee,
-                  negative: r.annualFee > 0,
-                  badge: r.feeWaived,
+                  value: fee,
+                  negative: fee > 0,
                 ),
               ),
-              Expanded(child: _MiniStat(label: 'Effective return', value: r.effectiveRoi, isPercent: true)),
             ],
           ),
         ],
@@ -196,127 +243,298 @@ class _ResultHero extends StatelessWidget {
   }
 }
 
-class _MiniStat extends StatelessWidget {
+class _Legend extends StatelessWidget {
+  final Color color;
   final String label;
   final double value;
-  final bool isPercent;
   final bool negative;
-  final bool badge;
-
-  const _MiniStat({required this.label, required this.value, this.isPercent = false, this.negative = false, this.badge = false});
+  const _Legend({required this.color, required this.label, required this.value, this.negative = false});
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Row(
-          children: [
-            Flexible(child: Text(label, style: context.text.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
-            if (badge) ...[const SizedBox(width: 4), Icon(AppIcons.checkCircle, size: 11, color: c.success)],
-          ],
-        ),
-        const SizedBox(height: 2),
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 6),
+        Flexible(child: Text(label, style: context.text.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        const SizedBox(width: 6),
         AnimatedAmount(
           value: value,
-          isPercent: isPercent,
-          compact: !isPercent,
+          compact: true,
           prefix: negative ? '−' : '',
-          style: AppTypography.numeric(15, color: negative ? c.textSecondary : c.textPrimary),
+          style: AppTypography.numeric(12.5, color: c.textPrimary, weight: FontWeight.w600),
         ),
       ],
     );
   }
 }
 
-class _BreakdownCard extends StatelessWidget {
-  const _BreakdownCard();
+double _niceStep(double raw) {
+  if (raw <= 0) return 1;
+  final magnitude = math.pow(10, (math.log(raw) / math.ln10).floor()).toDouble();
+  final n = raw / magnitude;
+  final nice = n <= 1 ? 1 : (n <= 2 ? 2 : (n <= 5 ? 5 : 10));
+  return nice * magnitude;
+}
+
+/// Cumulative net value across the first year, fee charged up front.
+class _BreakEvenChart extends StatelessWidget {
+  const _BreakEvenChart();
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final r = context.watch<CalculatorProvider>().result;
-    final total = r.totalRewardValue;
-    final parts = r.breakdowns.where((b) => b.earnedRupees > 0).toList();
+    final fee = r.feeWaived ? 0.0 : r.annualFee;
+    final monthly = r.totalRewardValue / 12;
+    final points = [for (var m = 0; m <= 12; m++) FlSpot(m.toDouble(), m * monthly - fee)];
+    final breakEven = fee == 0 ? 0 : (monthly <= 0 ? null : (fee / monthly).ceil());
+
+    final String headline;
+    if (breakEven == 0) {
+      headline = 'In profit from the first swipe';
+    } else if (breakEven != null && breakEven <= 12) {
+      headline = 'Pays for its fee in month $breakEven';
+    } else {
+      headline = 'Doesn\'t cover its fee this year';
+    }
+
+    final minY = math.min(0.0, points.first.y);
+    final maxY = math.max(points.last.y, 1.0);
+    final pad = (maxY - minY) * 0.12;
+    final interval = _niceStep((maxY - minY) / 3);
 
     return AppSurface(
-      padding: const EdgeInsets.all(14),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Icon(AppIcons.trendUp, size: 15, color: c.accent),
+              const SizedBox(width: 8),
+              Expanded(child: Text(headline, style: context.text.titleSmall)),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Padding(
+            padding: const EdgeInsets.only(left: 23),
+            child: Text('Running total over 12 months', style: context.text.labelSmall),
+          ),
+          const SizedBox(height: 14),
           SizedBox(
-            width: 116,
-            height: 116,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                PieChart(
-                  PieChartData(
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 38,
-                    startDegreeOffset: -90,
-                    sections: parts.isEmpty
-                        ? [PieChartSectionData(value: 1, color: c.surfaceHigh, radius: 14, showTitle: false)]
-                        : [
-                            for (final b in parts)
-                              PieChartSectionData(
-                                value: b.earnedRupees,
-                                color: _bucketColors[b.bucket],
-                                radius: 14,
-                                showTitle: false,
-                              ),
-                          ],
-                  ),
-                  duration: AppDimensions.slowAnim,
-                  curve: Curves.easeOutCubic,
+            height: 150,
+            child: LineChart(
+              LineChartData(
+                minX: 0,
+                maxX: 12,
+                minY: minY - pad,
+                maxY: maxY + pad,
+                clipData: const FlClipData.all(),
+                gridData: FlGridData(
+                  drawVerticalLine: false,
+                  horizontalInterval: interval,
+                  getDrawingHorizontalLine: (_) => FlLine(color: c.border, strokeWidth: 1),
                 ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(CurrencyFormatter.compact(total), style: AppTypography.numeric(15, color: c.textPrimary)),
-                    Text('earned', style: context.text.labelSmall),
+                borderData: FlBorderData(show: false),
+                extraLinesData: ExtraLinesData(
+                  horizontalLines: [
+                    if (fee > 0) HorizontalLine(y: 0, color: c.borderStrong, strokeWidth: 1, dashArray: [4, 4]),
                   ],
                 ),
-              ],
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(),
+                  rightTitles: const AxisTitles(),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 42,
+                      interval: interval,
+                      getTitlesWidget: (v, meta) => v == meta.min || v == meta.max
+                          ? const SizedBox.shrink()
+                          : SideTitleWidget(
+                              meta: meta,
+                              child: Text(CurrencyFormatter.compact(v), style: context.text.labelSmall),
+                            ),
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 3,
+                      reservedSize: 22,
+                      getTitlesWidget: (v, meta) => SideTitleWidget(
+                        meta: meta,
+                        child: Text(v == 0 ? 'Now' : 'M${v.toInt()}', style: context.text.labelSmall),
+                      ),
+                    ),
+                  ),
+                ),
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => c.surfaceHigh,
+                    getTooltipItems: (spots) => [
+                      for (final s in spots)
+                        LineTooltipItem(
+                          '${s.x == 0 ? 'Start' : 'Month ${s.x.toInt()}'}\n',
+                          context.text.labelSmall!,
+                          children: [
+                            TextSpan(
+                              text: CurrencyFormatter.format(s.y),
+                              style: AppTypography.numeric(12.5, color: c.textPrimary, weight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: points,
+                    isCurved: false,
+                    color: c.accent,
+                    barWidth: 2.5,
+                    dotData: FlDotData(
+                      checkToShowDot: (spot, _) => breakEven != null && breakEven > 0 && spot.x == breakEven.toDouble(),
+                      getDotPainter: (_, _, _, _) => FlDotCirclePainter(
+                        radius: 4,
+                        color: c.accent,
+                        strokeWidth: 2,
+                        strokeColor: c.surface,
+                      ),
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [c.tint(c.accent, 0.28), c.tint(c.accent, 0.0)],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              duration: AppDimensions.mediumAnim,
+              curve: Curves.easeOutCubic,
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              children: [
-                for (final b in r.breakdowns)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child: Row(
+        ],
+      ),
+    );
+  }
+}
+
+/// Rewards earned per spend category, one hue with the leader highlighted.
+class _BreakdownChart extends StatelessWidget {
+  const _BreakdownChart();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final r = context.watch<CalculatorProvider>().result;
+    final rows = r.breakdowns;
+    final top = rows.fold<double>(0, (m, b) => math.max(m, b.earnedRupees));
+    final ceiling = top == 0 ? 1.0 : top * 1.15;
+
+    return AppSurface(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(AppIcons.chartBar, size: 15, color: c.accent),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Where rewards come from', style: context.text.titleSmall)),
+              Text('per year', style: context.text.labelSmall),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 140,
+            child: BarChart(
+              BarChartData(
+                maxY: ceiling,
+                alignment: BarChartAlignment.spaceAround,
+                gridData: const FlGridData(show: false),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(),
+                  rightTitles: const AxisTitles(),
+                  leftTitles: const AxisTitles(),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 26,
+                      getTitlesWidget: (v, meta) {
+                        final i = v.toInt();
+                        if (i < 0 || i >= rows.length) return const SizedBox.shrink();
+                        final lead = rows[i].earnedRupees == top && top > 0;
+                        return SideTitleWidget(
+                          meta: meta,
+                          space: 6,
+                          child: Icon(_bucketIcon(rows[i].bucket), size: 15, color: lead ? c.accent : c.textTertiary),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) => c.surfaceHigh,
+                    getTooltipItem: (group, _, rod, _) => BarTooltipItem(
+                      '${rows[group.x].bucket.label}\n',
+                      context.text.labelSmall!,
                       children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(color: _bucketColors[b.bucket], shape: BoxShape.circle),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(b.bucket.label, style: context.text.bodySmall!.copyWith(color: c.textSecondary), maxLines: 1),
-                        ),
-                        Text(
-                          CurrencyFormatter.formatPercentage(b.returnPercentage),
-                          style: context.text.labelSmall,
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 56,
-                          child: Text(
-                            CurrencyFormatter.compact(b.earnedRupees),
-                            textAlign: TextAlign.right,
-                            style: AppTypography.numeric(12, color: c.textPrimary, weight: FontWeight.w600),
-                          ),
+                        TextSpan(
+                          text: CurrencyFormatter.format(rod.toY),
+                          style: AppTypography.numeric(12.5, color: c.textPrimary, weight: FontWeight.w600),
                         ),
                       ],
                     ),
                   ),
-              ],
+                ),
+                barGroups: [
+                  for (var i = 0; i < rows.length; i++)
+                    BarChartGroupData(
+                      x: i,
+                      barRods: [
+                        BarChartRodData(
+                          toY: rows[i].earnedRupees,
+                          width: 18,
+                          color: rows[i].earnedRupees == top && top > 0 ? c.accent : c.tint(c.accent, 0.42),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              duration: AppDimensions.mediumAnim,
+              curve: Curves.easeOutCubic,
             ),
           ),
+          const SizedBox(height: 10),
+          for (final b in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Icon(_bucketIcon(b.bucket), size: 14, color: c.textTertiary),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(b.bucket.label, style: context.text.bodySmall!.copyWith(color: c.textSecondary))),
+                  Text(CurrencyFormatter.formatPercentage(b.returnPercentage), style: context.text.labelSmall),
+                  SizedBox(
+                    width: 64,
+                    child: Text(
+                      CurrencyFormatter.compact(b.earnedRupees),
+                      textAlign: TextAlign.right,
+                      style: AppTypography.numeric(12, color: c.textPrimary, weight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -331,16 +549,17 @@ class _PresetStrip extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Overline('Monthly spends'),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        const SectionHeader(
+          title: 'Your monthly spends',
+          subtitle: 'Start from a profile, then fine-tune',
+          padding: EdgeInsets.fromLTRB(0, AppDimensions.p8, 0, AppDimensions.p10),
+        ),
+        ChipStrip(
+          padding: EdgeInsets.zero,
           children: [
             for (final e in CalculatorProvider.presets.entries)
               AppChip(
                 label: e.key,
-                icon: AppIcons.lightbulb,
                 onTap: () => context.read<CalculatorProvider>().applyPreset(e.value),
               ),
           ],
@@ -363,8 +582,25 @@ class _SpendSliders extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text('Total per month', style: context.text.bodySmall)),
-              AnimatedAmount(value: calc.monthlyTotal, style: AppTypography.numeric(15, color: c.textPrimary)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Total per month', style: context.text.labelSmall),
+                    AnimatedAmount(value: calc.monthlyTotal, style: AppTypography.numeric(15, color: c.textPrimary)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('Net per year', style: context.text.labelSmall),
+                  AnimatedAmount(
+                    value: calc.result.netBenefit,
+                    style: AppTypography.numeric(15, color: calc.result.netBenefit >= 0 ? c.accent : c.danger),
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -390,14 +626,14 @@ class _SliderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final color = _bucketColors[bucket]!;
+    final color = c.accent;
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(
         children: [
           Row(
             children: [
-              Icon(_bucketIcon(bucket), size: 15, color: color),
+              Icon(_bucketIcon(bucket), size: 15, color: value > 0 ? color : c.textTertiary),
               const SizedBox(width: 8),
               Expanded(child: Text(bucket.label, style: context.text.bodyMedium!.copyWith(color: c.textPrimary))),
               Text(CurrencyFormatter.format(value), style: AppTypography.numeric(13, color: c.textPrimary, weight: FontWeight.w600)),
@@ -406,6 +642,7 @@ class _SliderRow extends StatelessWidget {
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: color,
+              inactiveTrackColor: c.surfaceHigh,
               thumbColor: color,
               overlayColor: color.withValues(alpha: 0.12),
               trackHeight: 3,

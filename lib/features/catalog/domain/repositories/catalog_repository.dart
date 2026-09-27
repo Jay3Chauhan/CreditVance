@@ -11,6 +11,8 @@ class CatalogQuery {
   final String? network;
   final String? feeType;
   final bool popularOnly;
+  final bool? hasLounge;
+  final String? loungeType;
   final String sortBy;
 
   const CatalogQuery({
@@ -19,6 +21,8 @@ class CatalogQuery {
     this.network,
     this.feeType,
     this.popularOnly = false,
+    this.hasLounge,
+    this.loungeType,
     this.sortBy = 'popular',
   });
 
@@ -28,6 +32,8 @@ class CatalogQuery {
       network == null &&
       feeType == null &&
       !popularOnly &&
+      hasLounge == null &&
+      loungeType == null &&
       sortBy == 'popular';
 
   int get activeFilterCount =>
@@ -35,6 +41,8 @@ class CatalogQuery {
       (network != null ? 1 : 0) +
       (feeType != null ? 1 : 0) +
       (popularOnly ? 1 : 0) +
+      (hasLounge != null ? 1 : 0) +
+      (loungeType != null ? 1 : 0) +
       (sortBy != 'popular' ? 1 : 0);
 
   CatalogQuery copyWith({
@@ -43,6 +51,8 @@ class CatalogQuery {
     Object? network = _keep,
     Object? feeType = _keep,
     bool? popularOnly,
+    Object? hasLounge = _keep,
+    Object? loungeType = _keep,
     String? sortBy,
   }) {
     return CatalogQuery(
@@ -51,6 +61,8 @@ class CatalogQuery {
       network: identical(network, _keep) ? this.network : network as String?,
       feeType: identical(feeType, _keep) ? this.feeType : feeType as String?,
       popularOnly: popularOnly ?? this.popularOnly,
+      hasLounge: identical(hasLounge, _keep) ? this.hasLounge : hasLounge as bool?,
+      loungeType: identical(loungeType, _keep) ? this.loungeType : loungeType as String?,
       sortBy: sortBy ?? this.sortBy,
     );
   }

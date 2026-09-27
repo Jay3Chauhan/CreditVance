@@ -35,5 +35,17 @@ abstract class WalletRepository {
 
   Future<(VaultStatus, VaultSecrets?)> readSecrets(int userCardId);
 
+  /// Replaces the on-device card number / CVV / expiry after biometric
+  /// verification. Only the new last 4 digits reach the server.
+  Future<(VaultStatus, UserCard?)> updateSecrets(
+    UserCard card, {
+    required String cardNumber,
+    String? cvv,
+    String? expiry,
+  });
+
+  /// Deletes the stored secrets, keeping the card with last 4 digits only.
+  Future<(VaultStatus, UserCard?)> removeSecrets(UserCard card);
+
   Future<void> clearLocalWallet();
 }

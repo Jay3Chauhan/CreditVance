@@ -5,6 +5,7 @@ class SpendCategory {
   final String slug;
   final String? iconName;
   final String description;
+  final int displayOrder;
 
   const SpendCategory({
     required this.id,
@@ -12,5 +13,6 @@ class SpendCategory {
     required this.slug,
     this.iconName,
     this.description = '',
+    this.displayOrder = 0,
   });
 }

@@ -25,6 +25,9 @@ class CatalogCardModel extends CatalogCard {
     super.isCurrentlyIssuing,
     super.rating,
     super.overview,
+    super.applyLink,
+    super.pointValueInr,
+    super.earnRates,
     super.keyPerks,
     super.loungeTypes,
     super.benefitTypes,
@@ -56,6 +59,19 @@ class CatalogCardModel extends CatalogCard {
     final loungeTypes = _strings(json['lounge_types']);
     final benefitTypes = _strings(json['benefit_types']);
     final overview = _nonEmpty(json['overview_text']);
+    final earnRates = <CategoryEarnRate>[];
+    final rawRates = json['per_category_earn_rates'];
+    if (rawRates is List) {
+      for (final row in rawRates.whereType<Map<String, dynamic>>()) {
+        final slug = row['category_slug'] as String?;
+        if (slug == null || slug.isEmpty) continue;
+        earnRates.add(CategoryEarnRate(
+          categorySlug: slug,
+          ratePercent: (row['rate_percent'] as num?)?.toDouble() ?? 0,
+          capMonthly: (row['cap_monthly'] as num?)?.toDouble(),
+        ));
+      }
+    }
 
     final perks = <String>[];
     final explicitPerks = _strings(json['key_perks']);
@@ -116,6 +132,9 @@ class CatalogCardModel extends CatalogCard {
       isCurrentlyIssuing: json['is_currently_issuing'] as bool? ?? true,
       rating: (json['rating'] as num?)?.toDouble() ?? 4.5,
       overview: overview,
+      applyLink: _nonEmpty(json['apply_link']),
+      pointValueInr: (json['point_value_inr'] as num?)?.toDouble(),
+      earnRates: earnRates,
       keyPerks: perks,
       loungeTypes: loungeTypes,
       benefitTypes: benefitTypes,
@@ -216,6 +235,9 @@ class CatalogCardModel extends CatalogCard {
         isCurrentlyIssuing: c.isCurrentlyIssuing,
         rating: c.rating,
         overview: c.overview,
+        applyLink: c.applyLink,
+        pointValueInr: c.pointValueInr,
+        earnRates: c.earnRates,
         keyPerks: c.keyPerks,
         loungeTypes: c.loungeTypes,
         benefitTypes: c.benefitTypes,
@@ -246,6 +268,12 @@ class CatalogCardModel extends CatalogCard {
         'is_currently_issuing': isCurrentlyIssuing,
         'rating': rating,
         'overview_text': overview,
+        'apply_link': applyLink,
+        'point_value_inr': pointValueInr,
+        'per_category_earn_rates': [
+          for (final r in earnRates)
+            {'category_slug': r.categorySlug, 'rate_percent': r.ratePercent, 'cap_monthly': r.capMonthly},
+        ],
         'key_perks': keyPerks,
         'lounge_types': loungeTypes,
         'benefit_types': benefitTypes,

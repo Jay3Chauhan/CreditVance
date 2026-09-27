@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Typography scale for CreditVance.
+/// Typography scale for Credvert.
 ///
 /// Sizes are deliberately compact (fintech density). Colors are applied by
 /// [AppTheme] through the [TextTheme], so read styles via `context.text`.

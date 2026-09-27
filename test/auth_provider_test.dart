@@ -1,7 +1,7 @@
-import 'package:cardsage/core/network/api_result.dart';
-import 'package:cardsage/features/auth/data/repositories/auth_repository.dart';
-import 'package:cardsage/features/auth/domain/entities/user.dart';
-import 'package:cardsage/features/auth/presentation/providers/auth_provider.dart';
+import 'package:credvert/core/network/api_result.dart';
+import 'package:credvert/features/auth/data/repositories/auth_repository.dart';
+import 'package:credvert/features/auth/domain/entities/user.dart';
+import 'package:credvert/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class FakeAuthRepository implements AuthRepository {
@@ -17,7 +17,7 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<ApiResult<User>> register(String email, String password, String fullName) async {
-    if (email == 'existing@creditvance.app') return const ApiFailure('An account with this email already exists');
+    if (email == 'existing@credvert.app') return const ApiFailure('An account with this email already exists');
     session = User(id: 43, email: email, fullName: fullName);
     return ApiSuccess(session!);
   }
@@ -37,6 +37,18 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<ApiResult<User>> refreshProfile() async =>
       session == null ? const ApiFailure('No session') : ApiSuccess(session!);
+
+  @override
+  Future<ApiResult<User>> updateName(String fullName) async => const ApiFailure('unused');
+
+  @override
+  Future<ApiResult<bool>> deleteAccount() async => const ApiSuccess(true);
+
+  @override
+  Future<ApiResult<String?>> forgotPassword(String email) async => const ApiSuccess(null);
+
+  @override
+  Future<ApiResult<bool>> resetPassword({required String token, required String newPassword}) async => const ApiSuccess(true);
 
   @override
   Future<void> logout() async {
@@ -70,23 +82,23 @@ void main() {
     });
 
     test('successful login signs in', () async {
-      final ok = await auth.login('custom@creditvance.app', 'CorrectPassword!');
+      final ok = await auth.login('custom@credvert.app', 'CorrectPassword!');
       expect(ok, isTrue);
       expect(auth.status, AuthStatus.signedIn);
-      expect(auth.user?.email, 'custom@creditvance.app');
+      expect(auth.user?.email, 'custom@credvert.app');
       expect(auth.isBusy, isFalse);
     });
 
     test('failed login keeps user signed out and exposes the error', () async {
       auth.restore();
-      final ok = await auth.login('test@creditvance.app', 'wrong');
+      final ok = await auth.login('test@credvert.app', 'wrong');
       expect(ok, isFalse);
       expect(auth.status, AuthStatus.signedOut);
       expect(auth.errorMessage, 'Incorrect email or password');
     });
 
     test('register signs in with the new name', () async {
-      final ok = await auth.register('new@creditvance.app', 'Secret123!', 'New Member');
+      final ok = await auth.register('new@credvert.app', 'Secret123!', 'New Member');
       expect(ok, isTrue);
       expect(auth.user?.fullName, 'New Member');
     });

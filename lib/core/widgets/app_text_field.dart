@@ -25,6 +25,7 @@ class AppTextField extends StatelessWidget {
   final int? maxLength;
   final TextCapitalization textCapitalization;
   final TextStyle? style;
+  final bool compact;
 
   const AppTextField({
     super.key,
@@ -49,6 +50,7 @@ class AppTextField extends StatelessWidget {
     this.maxLength,
     this.textCapitalization = TextCapitalization.none,
     this.style,
+    this.compact = false,
   });
 
   @override
@@ -83,6 +85,8 @@ class AppTextField extends StatelessWidget {
             hintText: hint,
             helperText: helper,
             errorText: errorText,
+            isDense: true,
+            contentPadding: compact ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10) : null,
             counterText: '',
             prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, size: 18, color: c.textTertiary),
             suffixIcon: suffix,

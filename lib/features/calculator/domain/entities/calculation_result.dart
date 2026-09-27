@@ -24,6 +24,7 @@ class RewardSubject {
   final double? maxRate;
   final double annualFee;
   final double? feeWaiverSpend;
+  final Map<String, double> categoryRates;
 
   const RewardSubject({
     required this.cardId,
@@ -36,6 +37,7 @@ class RewardSubject {
     this.maxRate,
     required this.annualFee,
     this.feeWaiverSpend,
+    this.categoryRates = const {},
   });
 }
 

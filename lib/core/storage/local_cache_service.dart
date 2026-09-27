@@ -9,6 +9,7 @@ class LocalCacheService {
   LocalCacheService(this._prefs);
 
   static const String _keyAuthToken = 'cs_auth_token';
+  static const String _keyRefreshToken = 'cs_refresh_token';
   static const String _keyGuest = 'cs_is_guest';
   static const String _keyUserProfile = 'cs_user_profile';
   static const String _keyCatalogCache = 'cs_catalog_cache_v3';
@@ -19,6 +20,9 @@ class LocalCacheService {
   static const String _keyWalletOrder = 'cs_wallet_order_v1';
   static const String _keySettings = 'cs_settings_v1';
   static const String _keyOnboarded = 'cs_onboarded_v1';
+  static const String _keyDismissedAnnouncement = 'cs_rc_announcement_dismissed';
+  static const String _keyDismissedUpdate = 'cs_rc_update_dismissed';
+  static const String _keySeenWhatsNew = 'cs_rc_whats_new_seen';
 
   static const Duration catalogTtl = Duration(hours: 6);
 
@@ -26,6 +30,10 @@ class LocalCacheService {
   String? getAuthToken() => _prefs.getString(_keyAuthToken);
   Future<bool> setAuthToken(String token) => _prefs.setString(_keyAuthToken, token);
   Future<bool> clearAuthToken() => _prefs.remove(_keyAuthToken);
+
+  String? getRefreshToken() => _prefs.getString(_keyRefreshToken);
+  Future<bool> setRefreshToken(String token) => _prefs.setString(_keyRefreshToken, token);
+  Future<bool> clearRefreshToken() => _prefs.remove(_keyRefreshToken);
 
   bool get isGuest => _prefs.getBool(_keyGuest) ?? false;
   Future<bool> setGuest(bool value) => _prefs.setBool(_keyGuest, value);
@@ -73,6 +81,16 @@ class LocalCacheService {
   Future<bool> setWalletOrder(List<int> ids) =>
       _prefs.setStringList(_keyWalletOrder, ids.map((e) => e.toString()).toList());
 
+  // Remote Config dismissals (not secrets)
+  String? get dismissedAnnouncementId => _prefs.getString(_keyDismissedAnnouncement);
+  Future<bool> setDismissedAnnouncement(String id) => _prefs.setString(_keyDismissedAnnouncement, id);
+
+  String? get dismissedUpdateKey => _prefs.getString(_keyDismissedUpdate);
+  Future<bool> setDismissedUpdate(String key) => _prefs.setString(_keyDismissedUpdate, key);
+
+  String? get seenWhatsNewVersion => _prefs.getString(_keySeenWhatsNew);
+  Future<bool> setSeenWhatsNew(String version) => _prefs.setString(_keySeenWhatsNew, version);
+
   // App settings
   String? getSettings() => _prefs.getString(_keySettings);
   Future<bool> setSettings(String jsonStr) => _prefs.setString(_keySettings, jsonStr);
@@ -81,6 +99,7 @@ class LocalCacheService {
   /// (theme, security preferences) and the public catalog cache.
   Future<void> clearSession() async {
     await _prefs.remove(_keyAuthToken);
+    await _prefs.remove(_keyRefreshToken);
     await _prefs.remove(_keyGuest);
     await _prefs.remove(_keyUserProfile);
     await _prefs.remove(_keyWalletCards);

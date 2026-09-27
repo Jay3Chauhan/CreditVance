@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:cardsage/core/utils/currency_formatter.dart';
-import 'package:cardsage/core/utils/card_formatter.dart';
-import 'package:cardsage/core/data/mock_seed_data.dart';
+import 'package:credvert/core/utils/currency_formatter.dart';
+import 'package:credvert/core/utils/card_formatter.dart';
+import 'package:credvert/core/data/mock_seed_data.dart';
 
 void main() {
-  group('CardSage Core Utilities Smoke Tests', () {
+  group('Credvert Core Utilities Smoke Tests', () {
     test('CurrencyFormatter formats INR correctly', () {
       expect(CurrencyFormatter.format(5000), '₹5,000');
       expect(CurrencyFormatter.format(150000), '₹1,50,000');

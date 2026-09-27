@@ -11,6 +11,7 @@ import '../../../../core/utils/context_ext.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_surface.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../remote_config/presentation/remote_config_controller.dart';
 import '../../../wallet/presentation/widgets/visual_credit_card.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../providers/auth_provider.dart';
@@ -180,9 +181,56 @@ class _AuthFormState extends State<_AuthForm> {
     }
   }
 
+  Future<void> _forgot() async {
+    final email = _email.text.trim();
+    final emailError = AuthRepositoryImpl.validateEmail(email);
+    if (emailError != null) {
+      AppToast.info(context, message: emailError);
+      return;
+    }
+    final result = await context.read<AuthProvider>().forgotPassword(email);
+    if (!mounted) return;
+    final token = result.dataOrNull;
+    if (!result.isSuccess) {
+      AppToast.error(context, message: result.errorOrNull ?? 'Could not start a reset');
+      return;
+    }
+    if (token == null || token.isEmpty) {
+      AppToast.success(context, message: 'If that account exists, reset instructions are on the way');
+      return;
+    }
+    final next = TextEditingController();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Choose a new password'),
+        content: AppTextField(controller: next, label: 'New password', obscureText: true, autofocus: true),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Update')),
+        ],
+      ),
+    );
+    final password = next.text;
+    next.dispose();
+    if (saved != true || !mounted) return;
+    if (password.length < 8) {
+      AppToast.info(context, message: 'Use at least 8 characters');
+      return;
+    }
+    final ok = await context.read<AuthProvider>().resetPassword(token: token, newPassword: password);
+    if (!mounted) return;
+    if (ok) {
+      AppToast.success(context, message: 'Password updated. Sign in with it.');
+    } else {
+      AppToast.error(context, message: context.read<AuthProvider>().errorMessage ?? 'Could not reset the password');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final guestMode = context.select<RemoteConfigController, bool>((remote) => remote.config.guestModeEnabled);
     return AutofillGroup(
       child: Form(
         key: _formKey,
@@ -248,7 +296,12 @@ class _AuthFormState extends State<_AuthForm> {
                     ),
                   ),
                 ),
-                const SizedBox(height: AppDimensions.p20),
+                if (!isSignUp)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: AppButton.ghost(label: 'Forgot password?', onPressed: _forgot),
+                  ),
+                const SizedBox(height: AppDimensions.p12),
                 Selector<AuthProvider, bool>(
                   selector: (_, p) => p.isBusy,
                   builder: (context, busy, _) => AppButton(
@@ -259,23 +312,25 @@ class _AuthFormState extends State<_AuthForm> {
                     onPressed: _submit,
                   ),
                 ),
-                const SizedBox(height: AppDimensions.p16),
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: c.border)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('or', style: context.text.bodySmall),
-                    ),
-                    Expanded(child: Divider(color: c.border)),
-                  ],
-                ),
-                const SizedBox(height: AppDimensions.p16),
-                AppButton.outline(
-                  label: 'Continue without an account',
-                  icon: AppIcons.lock,
-                  onPressed: () => context.read<AuthProvider>().continueAsGuest(),
-                ),
+                if (guestMode) ...[
+                  const SizedBox(height: AppDimensions.p16),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: c.border)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('or', style: context.text.bodySmall),
+                      ),
+                      Expanded(child: Divider(color: c.border)),
+                    ],
+                  ),
+                  const SizedBox(height: AppDimensions.p16),
+                  AppButton.outline(
+                    label: 'Continue without an account',
+                    icon: AppIcons.lock,
+                    onPressed: () => context.read<AuthProvider>().continueAsGuest(),
+                  ),
+                ],
                 const SizedBox(height: AppDimensions.p20),
                 const _PrivacyNote(),
               ],

@@ -15,7 +15,7 @@ class CatalogProvider extends ChangeNotifier {
 
   CatalogProvider(this._repository);
 
-  static const int maxCompare = 3;
+  static const int maxCompare = 4;
 
   ViewState _state = ViewState.initial;
   ViewState get state => _state;
@@ -163,6 +163,11 @@ class CatalogProvider extends ChangeNotifier {
     _applyQuery(_query.copyWith(feeType: feeType));
   }
 
+  void setLoungeFilter(bool? value) {
+    if (_query.hasLounge == value) return;
+    _applyQuery(_query.copyWith(hasLounge: value, loungeType: value == null ? null : _query.loungeType));
+  }
+
   void setPopularOnly(bool value) {
     if (_query.popularOnly == value) return;
     _applyQuery(_query.copyWith(popularOnly: value));
@@ -171,6 +176,18 @@ class CatalogProvider extends ChangeNotifier {
   void setSortBy(String sort) {
     if (_query.sortBy == sort) return;
     _applyQuery(_query.copyWith(sortBy: sort));
+  }
+
+  /// Opens Explore from a content action (`/catalog?fee_type=free`).
+  void applyRoute({String? feeType, bool? hasLounge, String? sortBy, String? network, String? bankSlug}) {
+    _applyQuery(CatalogQuery(
+      search: _query.search,
+      feeType: feeType,
+      hasLounge: hasLounge,
+      sortBy: sortBy ?? 'popular',
+      network: network,
+      bankSlug: bankSlug,
+    ));
   }
 
   /// Applies several filters at once (from the filter sheet).

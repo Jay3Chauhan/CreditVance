@@ -90,6 +90,7 @@ class WalletRepositoryImpl implements WalletRepository {
           'nickname': c.nickname,
           'last_4_digits': c.last4Digits,
           'billing_cycle_day': c.billingCycleDay,
+          'statement_day': c.billingCycleDay,
         },
         fromJson: (data) => UserCardModel.fromJson(data as Map<String, dynamic>),
       );
@@ -157,6 +158,7 @@ class WalletRepositoryImpl implements WalletRepository {
           'nickname': nickname,
           'last_4_digits': last4Digits,
           'billing_cycle_day': billingCycleDay,
+          'statement_day': billingCycleDay,
         },
         fromJson: (data) => UserCardModel.fromJson(data as Map<String, dynamic>),
       );
@@ -194,6 +196,7 @@ class WalletRepositoryImpl implements WalletRepository {
         data: {
           'nickname': ?nickname,
           'billing_cycle_day': ?billingCycleDay,
+          'statement_day': ?billingCycleDay,
         },
         fromJson: (data) => UserCardModel.fromJson(data as Map<String, dynamic>),
       );
@@ -232,7 +235,16 @@ class WalletRepositoryImpl implements WalletRepository {
   }
 
   @override
-  Future<void> saveOrder(List<int> orderedIds) => _cache.setWalletOrder(orderedIds);
+  Future<void> saveOrder(List<int> orderedIds) async {
+    await _cache.setWalletOrder(orderedIds);
+    // Local-only ids (guest cards) are not on the server yet.
+    if (!_isSignedIn || orderedIds.any((id) => id >= 1000000000)) return;
+    await _apiClient.put<bool>(
+      path: ApiEndpoints.walletOrder,
+      data: {'ids': orderedIds},
+      fromJson: (_) => true,
+    );
+  }
 
   @override
   Future<List<UserCard>> loadSampleCards() async {
@@ -276,6 +288,54 @@ class WalletRepositoryImpl implements WalletRepository {
   @override
   Future<(VaultStatus, VaultSecrets?)> readSecrets(int userCardId) {
     return _vault.readSecrets(userCardId, reason: AppStrings.biometricRevealReason);
+  }
+
+  @override
+  Future<(VaultStatus, UserCard?)> updateSecrets(
+    UserCard card, {
+    required String cardNumber,
+    String? cvv,
+    String? expiry,
+  }) async {
+    final auth = await _vault.authenticate(reason: 'Confirm it\'s you to change card details');
+    if (!auth.isSuccess) return (auth, null);
+
+    final digits = cardNumber.replaceAll(RegExp(r'\D'), '');
+    await _vault.deleteCardSecrets(card.id);
+    await _vault.saveCardSecrets(userCardId: card.id, cardNumber: digits, cvv: cvv, expiry: expiry);
+
+    final last4 = digits.substring(digits.length - 4);
+    if (_isSignedIn && last4 != card.last4Digits) {
+      await _apiClient.patch<bool>(
+        path: ApiEndpoints.userCardById(card.id),
+        data: {'last_4_digits': last4},
+        fromJson: (_) => true,
+      );
+    }
+    final updated = card.copyWith(last4Digits: last4, hasVaultDetails: true);
+    await _upsertLocal(updated);
+    return (VaultStatus.success, updated);
+  }
+
+  @override
+  Future<(VaultStatus, UserCard?)> removeSecrets(UserCard card) async {
+    final auth = await _vault.authenticate(reason: 'Confirm it\'s you to remove card details');
+    if (!auth.isSuccess) return (auth, null);
+    await _vault.deleteCardSecrets(card.id);
+    final updated = card.copyWith(hasVaultDetails: false);
+    await _upsertLocal(updated);
+    return (VaultStatus.success, updated);
+  }
+
+  Future<void> _upsertLocal(UserCard card) async {
+    final local = _readLocal();
+    final index = local.indexWhere((c) => c.id == card.id);
+    if (index == -1) {
+      await _writeLocal([...local, UserCardModel.fromEntity(card)]);
+    } else {
+      local[index] = UserCardModel.fromEntity(card);
+      await _writeLocal(local);
+    }
   }
 
   @override

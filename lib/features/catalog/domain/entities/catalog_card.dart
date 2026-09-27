@@ -1,3 +1,12 @@
+/// One category's earn rate from card detail.
+class CategoryEarnRate {
+  final String categorySlug;
+  final double ratePercent;
+  final double? capMonthly;
+
+  const CategoryEarnRate({required this.categorySlug, required this.ratePercent, this.capMonthly});
+}
+
 /// A detail section of a card (earn rates, lounges, milestones...).
 class CardTabDetail {
   final String title;
@@ -35,6 +44,9 @@ class CatalogCard {
   final bool isCurrentlyIssuing;
   final double rating;
   final String? overview;
+  final String? applyLink;
+  final double? pointValueInr;
+  final List<CategoryEarnRate> earnRates;
   final List<String> keyPerks;
   final List<String> loungeTypes;
   final List<String> benefitTypes;
@@ -64,6 +76,9 @@ class CatalogCard {
     this.isCurrentlyIssuing = true,
     this.rating = 4.5,
     this.overview,
+    this.applyLink,
+    this.pointValueInr,
+    this.earnRates = const [],
     this.keyPerks = const [],
     this.loungeTypes = const [],
     this.benefitTypes = const [],

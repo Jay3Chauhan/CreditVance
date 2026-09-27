@@ -27,13 +27,18 @@ class BankLogo extends StatelessWidget {
     final c = context.colors;
     final radius = BorderRadius.circular(size * 0.28);
     final fallback = Center(
-      child: Text(
-        _initials,
-        style: context.text.labelSmall!.copyWith(
-          color: c.textSecondary,
-          fontSize: size * 0.28,
-          letterSpacing: 0,
-          fontWeight: FontWeight.w800,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          _initials,
+          maxLines: 1,
+          softWrap: false,
+          style: context.text.labelSmall!.copyWith(
+            color: c.textSecondary,
+            fontSize: size * 0.28,
+            letterSpacing: 0,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );

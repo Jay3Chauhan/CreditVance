@@ -184,6 +184,24 @@ class WalletProvider extends ChangeNotifier {
     );
   }
 
+  Future<VaultStatus> updateSecrets(UserCard card, {required String cardNumber, String? cvv, String? expiry}) async {
+    final (status, updated) = await _repository.updateSecrets(card, cardNumber: cardNumber, cvv: cvv, expiry: expiry);
+    if (updated != null) _replace(updated);
+    return status;
+  }
+
+  Future<VaultStatus> removeSecrets(UserCard card) async {
+    final (status, updated) = await _repository.removeSecrets(card);
+    if (updated != null) _replace(updated);
+    return status;
+  }
+
+  void _replace(UserCard updated) {
+    if (_revealedId == updated.id) hideSecrets();
+    _cards = _cards.map((c) => c.id == updated.id ? updated : c).toList();
+    notifyListeners();
+  }
+
   /// Optimistic delete with undo support: returns the removed card and index.
   Future<(UserCard, int)?> deleteCard(int userCardId) async {
     final index = _cards.indexWhere((c) => c.id == userCardId);

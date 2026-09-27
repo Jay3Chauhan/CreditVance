@@ -1,4 +1,4 @@
-# CreditVance — Backend Requirements & Suggestions
+# Credvert — Backend Requirements & Suggestions
 
 These findings come from testing the live API while redesigning the app. Each item lists the current behaviour, what the app does today as a workaround, and the change being requested.
 

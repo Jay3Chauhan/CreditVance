@@ -42,6 +42,7 @@ class AdvisorRecommendationModel {
       estimatedValue: (m['estimated_reward_value_inr'] as num?)?.toDouble() ?? 0,
       estimatedPoints: (m['estimated_reward_points'] as num?)?.toDouble(),
       rewardType: _rewardLabel(rewardType),
+      forexMarkupApplied: (m['forex_markup_applied'] as num?)?.toDouble(),
       reason: m['benefit_highlight'] as String? ?? '',
       notes: m['notes_or_exclusions'] as String?,
     );

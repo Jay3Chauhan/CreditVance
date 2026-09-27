@@ -8,6 +8,7 @@ class CategoryModel extends SpendCategory {
     required super.slug,
     super.iconName,
     super.description,
+    super.displayOrder,
   });
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
@@ -15,8 +16,9 @@ class CategoryModel extends SpendCategory {
       id: json['id'] as int? ?? 0,
       name: json['name'] as String? ?? '',
       slug: json['slug'] as String? ?? '',
-      iconName: json['icon_name'] as String?,
+      iconName: json['icon_key'] as String? ?? json['icon_name'] as String?,
       description: json['description'] as String? ?? '',
+      displayOrder: (json['display_order'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -24,7 +26,9 @@ class CategoryModel extends SpendCategory {
         'id': id,
         'name': name,
         'slug': slug,
+        'icon_key': iconName,
         'icon_name': iconName,
+        'display_order': displayOrder,
         'description': description,
       };
 }

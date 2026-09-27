@@ -1,25 +1,34 @@
 import 'dart:async';
 
-import 'package:cardsage/core/network/api_result.dart';
-import 'package:cardsage/core/storage/secure_vault_service.dart';
-import 'package:cardsage/core/theme/app_theme.dart';
-import 'package:cardsage/features/advisor/domain/entities/recommendation.dart';
-import 'package:cardsage/features/advisor/domain/repositories/advisor_repository.dart';
-import 'package:cardsage/features/advisor/domain/wallet_ranker.dart';
-import 'package:cardsage/features/advisor/presentation/providers/advisor_provider.dart';
-import 'package:cardsage/features/calculator/domain/entities/calculation_result.dart';
-import 'package:cardsage/features/calculator/domain/reward_engine.dart';
-import 'package:cardsage/features/catalog/domain/entities/bank.dart';
-import 'package:cardsage/features/catalog/domain/entities/card_tab.dart';
-import 'package:cardsage/features/catalog/domain/entities/catalog_card.dart';
-import 'package:cardsage/features/catalog/domain/entities/category.dart';
-import 'package:cardsage/features/catalog/domain/repositories/catalog_repository.dart';
-import 'package:cardsage/features/catalog/presentation/providers/catalog_provider.dart';
-import 'package:cardsage/features/catalog/presentation/widgets/catalog_card_tile.dart';
-import 'package:cardsage/features/wallet/domain/entities/user_card.dart';
-import 'package:cardsage/features/wallet/domain/repositories/wallet_repository.dart';
-import 'package:cardsage/features/wallet/presentation/providers/wallet_provider.dart';
-import 'package:cardsage/features/wallet/presentation/widgets/visual_credit_card.dart';
+import 'package:credvert/core/network/api_client.dart';
+import 'package:credvert/core/network/api_result.dart';
+import 'package:credvert/core/storage/local_cache_service.dart';
+import 'package:credvert/features/content/data/content_repository.dart';
+import 'package:credvert/features/content/presentation/providers/shortlist_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:credvert/core/storage/secure_vault_service.dart';
+import 'package:credvert/core/theme/app_theme.dart';
+import 'package:credvert/features/advisor/domain/entities/recommendation.dart';
+import 'package:credvert/features/advisor/domain/repositories/advisor_repository.dart';
+import 'package:credvert/features/advisor/domain/wallet_ranker.dart';
+import 'package:credvert/features/advisor/presentation/providers/advisor_provider.dart';
+import 'package:credvert/features/calculator/domain/entities/calculation_result.dart';
+import 'package:credvert/features/calculator/domain/reward_engine.dart';
+import 'package:credvert/features/catalog/domain/entities/bank.dart';
+import 'package:credvert/features/catalog/domain/entities/card_tab.dart';
+import 'package:credvert/features/catalog/domain/entities/catalog_card.dart';
+import 'package:credvert/features/catalog/domain/entities/category.dart';
+import 'package:credvert/features/catalog/domain/repositories/catalog_repository.dart';
+import 'package:credvert/features/catalog/presentation/providers/catalog_provider.dart';
+import 'package:credvert/features/catalog/presentation/widgets/catalog_card_tile.dart';
+import 'package:credvert/features/catalog/presentation/screens/card_detail_screen.dart';
+import 'package:credvert/features/calculator/presentation/providers/calculator_provider.dart';
+import 'package:credvert/features/content/presentation/providers/home_provider.dart';
+import 'package:credvert/features/shell/presentation/providers/navigation_provider.dart';
+import 'package:credvert/features/wallet/domain/entities/user_card.dart';
+import 'package:credvert/features/wallet/domain/repositories/wallet_repository.dart';
+import 'package:credvert/features/wallet/presentation/providers/wallet_provider.dart';
+import 'package:credvert/features/wallet/presentation/widgets/visual_credit_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -150,6 +159,20 @@ class FakeWalletRepository implements WalletRepository {
       (VaultStatus.success, const VaultSecrets(pan: '4111111111111111', cvv: '123', expiry: '12/29'));
 
   @override
+  Future<(VaultStatus, UserCard?)> updateSecrets(UserCard card, {required String cardNumber, String? cvv, String? expiry}) async {
+    final updated = card.copyWith(last4Digits: cardNumber.substring(cardNumber.length - 4), hasVaultDetails: true);
+    cards = [for (final c in cards) c.id == card.id ? updated : c];
+    return (VaultStatus.success, updated);
+  }
+
+  @override
+  Future<(VaultStatus, UserCard?)> removeSecrets(UserCard card) async {
+    final updated = card.copyWith(hasVaultDetails: false);
+    cards = [for (final c in cards) c.id == card.id ? updated : c];
+    return (VaultStatus.success, updated);
+  }
+
+  @override
   Future<void> clearLocalWallet() async => cards = [];
 }
 
@@ -160,6 +183,7 @@ class FakeAdvisorRepository implements AdvisorRepository {
     required double spendAmount,
     String? merchantName,
     bool isInternational = false,
+    List<int> cardIds = const [],
   }) async {
     return ApiSuccess(AdvisorRecommendation(
       categorySlug: categorySlug,
@@ -221,9 +245,10 @@ void main() {
       expect(provider.toggleCompare(_card(1)), isTrue);
       expect(provider.toggleCompare(_card(2)), isTrue);
       expect(provider.toggleCompare(_card(3)), isTrue);
-      expect(provider.toggleCompare(_card(4)), isFalse);
+      expect(provider.toggleCompare(_card(4)), isTrue);
+      expect(provider.toggleCompare(_card(5)), isFalse);
       expect(provider.toggleCompare(_card(1)), isTrue);
-      expect(provider.compareList.length, 2);
+      expect(provider.compareList.length, 3);
     });
   });
 
@@ -334,9 +359,16 @@ void main() {
     });
 
     testWidgets('CatalogCardTile shows name, return and fee', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
       await tester.pumpWidget(
-        ChangeNotifierProvider(
-          create: (_) => CatalogProvider(FakeCatalogRepository()),
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => CatalogProvider(FakeCatalogRepository())),
+            ChangeNotifierProvider(
+              create: (_) => ShortlistProvider(ContentRepository(ApiClient(cacheService: LocalCacheService(prefs)))),
+            ),
+          ],
           child: MaterialApp(
             theme: AppTheme.lightTheme,
             home: Scaffold(body: CatalogCardTile(card: _card(7, fee: 0, rate: 2.5))),
@@ -347,7 +379,46 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Card 7'), findsOneWidget);
       expect(find.text('2.5%'), findsOneWidget);
-      expect(find.text('Lifetime free'), findsOneWidget);
+      expect(find.textContaining('No annual fee'), findsOneWidget);
+    });
+
+    testWidgets('CardDetailScreen shows content above a compact action bar', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final content = ContentRepository(ApiClient(cacheService: LocalCacheService(prefs)));
+      final catalogRepo = FakeCatalogRepository();
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<CatalogRepository>.value(value: catalogRepo),
+            ChangeNotifierProvider(create: (_) => CatalogProvider(catalogRepo)),
+            ChangeNotifierProvider(create: (_) => WalletProvider(FakeWalletRepository([]))),
+            ChangeNotifierProvider(create: (_) => CalculatorProvider()),
+            ChangeNotifierProvider(create: (_) => NavigationProvider()),
+            ChangeNotifierProvider(create: (_) => ShortlistProvider(content)),
+            ChangeNotifierProvider(create: (_) => HomeProvider(content)),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: CardDetailScreen(slug: 'card-1', initial: _card(1, fee: 500)),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      expect(tester.takeException(), isNull);
+      expect(find.text('Reward return'), findsOneWidget);
+      expect(find.text('I have this card'), findsOneWidget);
+      final bar = tester.getSize(find.ancestor(of: find.text('I have this card'), matching: find.byType(SafeArea)).first);
+      expect(bar.height, lessThan(120));
+    });
+
+    testWidgets('WalletProvider.updateSecrets swaps last 4 digits', (tester) async {
+      final wallet = WalletProvider(FakeWalletRepository([_userCard(1)]));
+      await wallet.loadCards();
+      final status = await wallet.updateSecrets(wallet.cards.first, cardNumber: '4111111111114444');
+      expect(status.isSuccess, isTrue);
+      expect(wallet.cards.first.last4Digits, '4444');
+      expect(wallet.cards.first.hasVaultDetails, isTrue);
     });
   });
 }

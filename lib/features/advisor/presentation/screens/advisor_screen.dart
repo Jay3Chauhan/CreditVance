@@ -26,6 +26,9 @@ import '../../../catalog/presentation/screens/card_detail_screen.dart';
 import '../../../shell/presentation/providers/navigation_provider.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../domain/entities/recommendation.dart';
+import '../../../content/presentation/providers/home_provider.dart';
+import '../../../content/presentation/widgets/home_feed.dart';
+import '../../../remote_config/presentation/remote_config_controller.dart';
 import '../providers/advisor_provider.dart';
 
 class AdvisorScreen extends StatelessWidget {
@@ -33,10 +36,25 @@ class AdvisorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final enabled = context.select<RemoteConfigController, bool>((c) => c.config.advisorEnabled);
+    if (!enabled) {
+      return Padding(
+        padding: EdgeInsets.only(bottom: context.navClearance),
+        child: const EmptyStateView(
+          icon: AppIcons.sparkles,
+          title: 'Recommendations are paused',
+          message: 'Card suggestions are temporarily unavailable. Your wallet and saved cards are unchanged.',
+        ),
+      );
+    }
     final gutter = context.gutter();
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () => context.read<AdvisorProvider>().refresh(),
+        onRefresh: () {
+          final advisor = context.read<AdvisorProvider>();
+          final home = context.read<HomeProvider>();
+          return Future.wait([advisor.refresh(), home.load()]);
+        },
         edgeOffset: 100,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
@@ -46,6 +64,7 @@ class AdvisorScreen extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: gutter),
               sliver: const SliverList(
                 delegate: SliverChildListDelegate.fixed([
+                  MaintenanceNotice(),
                   _WalletPulse(),
                   SizedBox(height: AppDimensions.p16),
                   _SpendInputCard(),
@@ -55,6 +74,7 @@ class AdvisorScreen extends StatelessWidget {
                   _CategoryGrid(),
                   SizedBox(height: AppDimensions.p24),
                   _ResultSection(),
+                  HomeFeedSection(),
                 ]),
               ),
             ),
@@ -86,6 +106,7 @@ class _HomeAppBar extends StatelessWidget {
     return SliverAppBar(
       pinned: true,
       stretch: true,
+      automaticallyImplyLeading: false,
       expandedHeight: 112,
       titleSpacing: gutter,
       title: Builder(builder: (context) {
@@ -152,9 +173,7 @@ class _WalletPulse extends StatelessWidget {
     final dueDate = due?.estimatedDueDate;
     final days = dueDate?.difference(DateTime.now()).inDays;
 
-    return SizedBox(
-      height: 58,
-      child: Row(
+    return Row(
         children: [
           Expanded(
             child: _PulseTile(
@@ -175,7 +194,6 @@ class _WalletPulse extends StatelessWidget {
             ),
           ),
         ],
-      ),
     ).animate().fadeIn(duration: AppDimensions.mediumAnim);
   }
 }
@@ -203,7 +221,7 @@ class _PulseTile extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(label, style: context.text.bodySmall),
                 Text(
@@ -353,7 +371,7 @@ class _CategoryGrid extends StatelessWidget {
         final isSelected = cat.slug.toLowerCase() == selected.toLowerCase();
         return _CategoryTile(
           label: cat.name,
-          icon: AppIcons.forCategory(cat.slug),
+          icon: cat.iconName != null ? AppIcons.fromMaterial(cat.iconName) : AppIcons.forCategory(cat.slug),
           selected: isSelected,
           onTap: () => context.read<AdvisorProvider>().setCategory(cat.slug),
         ).animate(delay: AppDimensions.staggerStep * (i % 8)).fadeIn(duration: AppDimensions.mediumAnim).scale(
@@ -680,6 +698,13 @@ class _HeroPick extends StatelessWidget {
               ),
             ],
           ),
+          if (option.forexMarkupApplied != null && option.forexMarkupApplied! > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Forex markup ${CurrencyFormatter.formatPercentage(option.forexMarkupApplied!)} incl. GST',
+              style: context.text.labelSmall,
+            ),
+          ],
           if (option.reason.isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(option.reason, style: context.text.bodySmall!.copyWith(color: c.textSecondary)),
@@ -704,7 +729,7 @@ class _HeroPick extends StatelessWidget {
                   size: 12, color: c.textTertiary),
               const SizedBox(width: 4),
               Text(
-                source == RecommendationSource.onDevice ? 'Ranked on your device' : 'Ranked by CreditVance',
+                source == RecommendationSource.onDevice ? 'Ranked on your device' : 'Ranked by Credvert',
                 style: context.text.labelSmall,
               ),
             ],

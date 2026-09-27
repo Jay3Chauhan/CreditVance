@@ -22,6 +22,16 @@ abstract class AuthRepository {
   /// Refreshes the profile from `/auth/me` (signed-in only).
   Future<ApiResult<User>> refreshProfile();
 
+  Future<ApiResult<User>> updateName(String fullName);
+
+  Future<ApiResult<bool>> deleteAccount();
+
+  /// Returns a reset token only in non-production environments. A null token
+  /// with success means the user should check their email.
+  Future<ApiResult<String?>> forgotPassword(String email);
+
+  Future<ApiResult<bool>> resetPassword({required String token, required String newPassword});
+
   Future<void> logout();
 }
 
@@ -52,10 +62,13 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<ApiResult<User>> login(String email, String password) async {
     final cleanEmail = email.trim().toLowerCase();
-    final result = await _apiClient.post<String>(
+    final result = await _apiClient.post<(String, String?)>(
       path: ApiEndpoints.login,
       data: {'email': cleanEmail, 'password': password},
-      fromJson: (data) => (data as Map<String, dynamic>)['access_token'] as String,
+      fromJson: (data) {
+        final map = data as Map<String, dynamic>;
+        return (map['access_token'] as String, map['refresh_token'] as String?);
+      },
     );
 
     switch (result) {
@@ -67,7 +80,9 @@ class AuthRepositoryImpl implements AuthRepository {
         );
       case ApiSuccess(:final data):
         await _cache.setGuest(false);
-        await _cache.setAuthToken(data);
+        await _cache.setAuthToken(data.$1);
+        final refresh = data.$2;
+        if (refresh != null && refresh.isNotEmpty) await _cache.setRefreshToken(refresh);
         final me = await refreshProfile();
         if (me.isSuccess) return me;
         final fallback = User(id: 0, email: cleanEmail, fullName: '');
@@ -135,6 +150,47 @@ class AuthRepositoryImpl implements AuthRepository {
     }
     final f = result as ApiFailure<UserModel>;
     return ApiFailure(f.message, statusCode: f.statusCode, isNetworkError: f.isNetworkError);
+  }
+
+  @override
+  Future<ApiResult<User>> updateName(String fullName) async {
+    final result = await _apiClient.patch<User>(
+      path: ApiEndpoints.me,
+      data: {'full_name': fullName.trim()},
+      fromJson: (data) => UserModel.fromJson(data as Map<String, dynamic>),
+    );
+    if (result case ApiSuccess(:final data)) {
+      await _cache.setUserProfile(jsonEncode((data as UserModel).toJson()));
+    }
+    return result;
+  }
+
+  @override
+  Future<ApiResult<bool>> deleteAccount() async {
+    final result = await _apiClient.delete<bool>(
+      path: ApiEndpoints.me,
+      fromJson: (_) => true,
+    );
+    if (result.isSuccess) await _cache.clearSession();
+    return result;
+  }
+
+  @override
+  Future<ApiResult<String?>> forgotPassword(String email) {
+    return _apiClient.post<String?>(
+      path: ApiEndpoints.passwordForgot,
+      data: {'email': email.trim().toLowerCase()},
+      fromJson: (data) => data is Map<String, dynamic> ? data['reset_token'] as String? : null,
+    );
+  }
+
+  @override
+  Future<ApiResult<bool>> resetPassword({required String token, required String newPassword}) {
+    return _apiClient.post<bool>(
+      path: ApiEndpoints.passwordReset,
+      data: {'token': token, 'new_password': newPassword},
+      fromJson: (_) => true,
+    );
   }
 
   @override

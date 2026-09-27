@@ -2,9 +2,8 @@ import 'entities/calculation_result.dart';
 
 /// On-device annual reward simulator.
 ///
-/// Uses the card's base return rate per bucket, with curated accelerated
-/// rates for a few well-known cards. Real per-category rates need the
-/// backend's multi-category calculator (see docs/BACKEND_REQUIREMENTS.md).
+/// Uses per-category rates from card detail when the backend sent them,
+/// then curated rates for a few well-known cards, then the base return.
 class RewardEngine {
   const RewardEngine._();
 
@@ -37,6 +36,9 @@ class RewardEngine {
   };
 
   static double rateFor(RewardSubject s, SpendBucket bucket) {
+    for (final entry in s.categoryRates.entries) {
+      if (entry.key.toLowerCase() == bucket.categorySlug.toLowerCase()) return entry.value;
+    }
     final slug = (s.slug ?? s.name).toLowerCase();
     for (final entry in _curated.entries) {
       if (slug.contains(entry.key)) {

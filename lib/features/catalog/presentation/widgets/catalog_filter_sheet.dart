@@ -30,10 +30,10 @@ class CatalogFilters {
 
   static const sorts = {
     'popular': 'Most popular',
-    'return': 'Highest return',
-    'fee_asc': 'Fee: low to high',
-    'fee_desc': 'Fee: high to low',
-    'name': 'Name A–Z',
+    'return_desc': 'Highest return',
+    'return_asc': 'Lowest return',
+    'annual_fee_asc': 'Fee: low to high',
+    'annual_fee_desc': 'Fee: high to low',
   };
 }
 
@@ -132,6 +132,12 @@ class _FilterSheetState extends State<_FilterSheet> {
                 const SizedBox(height: AppDimensions.p20),
                 SettingsGroup(
                   children: [
+                    SettingsSwitchTile(
+                      icon: AppIcons.lounge,
+                      title: 'Airport lounge access',
+                      value: q.hasLounge == true,
+                      onChanged: (v) => _draft.value = q.copyWith(hasLounge: v ? true : null),
+                    ),
                     SettingsSwitchTile(
                       icon: AppIcons.star,
                       iconColor: c.accent,

@@ -1,4 +1,4 @@
-# CreditVance — UX Redesign
+# Credvert — UX Redesign
 
 This document summarises the redesign of the Flutter app: what changed, why, and the features that were added.
 A full copy of the pre-redesign `lib/` is kept in `../_backup/` for reference.
@@ -38,6 +38,7 @@ Tokens live in `lib/core/constants` (`app_palette`, `app_colors`, `app_typograph
 - A "you're missing ₹X" banner when a market card beats the wallet.
 - Collapsible alternatives, and insights.
 - Works offline, and for guests, through the on-device ranker (`WalletRanker`). International spends deduct forex markup plus GST.
+- **Discover** section at the bottom: server banners (theme-coloured carousel), tools, guides and collections from `GET /home`. Only the tiny maintenance notice may appear at the top, so late responses never push the page down.
 
 ### Wallet
 - **Carousel** of flippable 3D cards with scale/opacity paging. Tap reveals; long-press opens actions.
@@ -45,30 +46,37 @@ Tokens live in `lib/core/constants` (`app_palette`, `app_colors`, `app_typograph
 - Quick actions: copy number, copy CVV, copy expiry, and reveal/flip. Every action is biometric-gated.
 - **Manage mode:** drag-to-reorder (the order persists) and swipe-to-edit/remove, with undo.
 - Empty state with "Try sample cards".
+- **Wallet overview** under the focused card: yearly fees and next due date (computed on device), plus the best card you hold per category from `/wallet/insights` when signed in.
 
 ### Add / edit card
 - Pinned live preview that shrinks on scroll and flips to the back when the CVV field is focused.
 - Searchable card picker sheet.
 - A vault toggle chooses between storing the full details on-device (PAN, expiry, CVV, Luhn-validated) and storing only the last 4 digits.
 - Nickname and statement day fields.
+- **Edit card** can add, change, or remove the saved card number / expiry / CVV. The change is biometric-gated and written only to the Keystore / Keychain. Only the new last 4 digits are sent to the server.
 
 ### Explore (catalog)
 - Pinned search with a filter badge, quick chips and bank chips.
 - **True server pagination:** infinite scroll, dedupe, footer loading/error/end states.
 - Debounced search that ignores stale responses.
 - Filter sheet: network, fee type, popular, sort.
-- List ↔ grid toggle. Shows an offline cache notice when serving cached results.
-- **Compare tray** (up to 3 cards) opens a comparison table with the best value crowned.
+- Simple rows: thumbnail, name, bank · fee, and return. No inline action buttons.
+- The `catalog_top` banner sits inside the list after the sixth card, and only when no filters are active.
+- Shows an offline cache notice when serving cached results.
+- **Compare tray** (up to 4 cards) appears when cards are selected and opens the comparison table.
 
 ### Card detail
-- Hero header, stats grid, and a reward estimate that links to Rewards.
-- "Read more" overview and expandable sections: earn rates, highlights, lounges, benefits.
-- Sticky "I have this card" action.
+- Hero header, a key-numbers strip (return, annual fee, forex), and a reward estimate that links to Rewards.
+- "Read more" overview; expandable sections with reward-rate bars, highlights, lounges and benefits.
+- A "Fees & value" sheet, then the bank apply link, then card promotions (last, because they load late).
+- Sticky action bar: **Compare** (the only place cards are added to a comparison) and "I have this card". Shortlist is the bookmark in the header.
 
 ### Rewards (calculator)
 - Pick any catalog or wallet card.
 - Monthly spend sliders per bucket, with presets (Student / Family / Traveller / Premium).
-- Net annual value hero with fee-waiver detection, and a donut chart breakdown.
+- Net annual value hero with fee-waiver detection and a rewards-vs-fee split bar.
+- 12-month break-even line chart and a single-hue bar chart of rewards by category (gold accent only, with the leader highlighted).
+- The slider panel header repeats the live net value so it stays visible while adjusting.
 - **Wallet showdown** ranks the user's own cards for the same spend profile.
 
 ### Account
@@ -88,7 +96,7 @@ Tokens live in `lib/core/constants` (`app_palette`, `app_colors`, `app_typograph
 
 **Fix:**
 - `MainActivity` now extends `FlutterFragmentActivity`.
-- Copying goes through a native channel (`creditvance/secure`) that:
+- Copying goes through a native channel (`credvert/secure`) that:
   - marks the clip as **sensitive**, so it is hidden from the Android 13+ clipboard preview and keyboard suggestions;
   - schedules the wipe natively, so it still clears when the app is in the background. A Dart timer acts as a backstop.
 - Cancelled biometric prompts are silent. Real failures show a clear toast.

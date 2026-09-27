@@ -1,10 +1,9 @@
-/// Centralized product copy for CreditVance.
+/// Centralized product copy for Credvert.
 class AppStrings {
   const AppStrings._();
 
-  static const String appName = 'CreditVance';
+  static const String appName = 'Credvert';
   static const String appTagline = 'The right card, every checkout.';
-  static const String appVersion = '2.0.0';
 
   // Navigation
   static const String navHome = 'Home';
@@ -35,7 +34,7 @@ class AppStrings {
   static const String hide = 'Hide';
   static const String biometricCopyReason = 'Confirm it\'s you to copy the card number';
   static const String biometricRevealReason = 'Confirm it\'s you to view card details';
-  static const String biometricUnlockReason = 'Unlock CreditVance';
+  static const String biometricUnlockReason = 'Unlock Credvert';
 
   // Explore
   static const String exploreTitle = 'Explore';

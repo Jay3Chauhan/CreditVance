@@ -1,5 +1,5 @@
-import 'package:cardsage/core/constants/app_assets.dart';
-import 'package:cardsage/core/widgets/network_logo_widget.dart';
+import 'package:credvert/core/constants/app_assets.dart';
+import 'package:credvert/core/widgets/network_logo_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

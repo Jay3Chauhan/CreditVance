@@ -13,6 +13,7 @@ class RecommendationOption {
   final double estimatedValue;
   final double? estimatedPoints;
   final String rewardType;
+  final double? forexMarkupApplied;
   final String reason;
   final String? notes;
 
@@ -30,6 +31,7 @@ class RecommendationOption {
     required this.estimatedValue,
     this.estimatedPoints,
     required this.rewardType,
+    this.forexMarkupApplied,
     required this.reason,
     this.notes,
   });

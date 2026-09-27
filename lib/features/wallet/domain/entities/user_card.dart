@@ -8,6 +8,7 @@ class UserCard {
   final String nickname;
   final String last4Digits;
   final int? billingCycleDay;
+  final int? dueDay;
   final String cardName;
   final String? cardSlug;
   final String bankName;
@@ -27,6 +28,7 @@ class UserCard {
     required this.nickname,
     required this.last4Digits,
     this.billingCycleDay,
+    this.dueDay,
     required this.cardName,
     this.cardSlug,
     required this.bankName,
@@ -42,24 +44,36 @@ class UserCard {
   });
 
   /// Next statement date based on [billingCycleDay].
-  DateTime? get nextStatementDate {
-    final day = billingCycleDay;
+  DateTime? get nextStatementDate => _nextMonthDay(billingCycleDay);
+
+  /// Payment due date. Uses [dueDay] from the server when set, otherwise
+  /// about 18 days after the statement. Day 31 lands on the month's last day.
+  DateTime? get estimatedDueDate => dueDay != null ? _nextMonthDay(dueDay) : nextStatementDate?.add(const Duration(days: 18));
+
+  static DateTime? _nextMonthDay(int? day) {
     if (day == null) return null;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    var date = DateTime(now.year, now.month, day);
-    if (date.isBefore(today)) date = DateTime(now.year, now.month + 1, day);
+    DateTime on(int year, int month) {
+      final last = DateTime(year, month + 1, 0).day;
+      return DateTime(year, month, day.clamp(1, last));
+    }
+
+    var date = on(now.year, now.month);
+    if (date.isBefore(today)) {
+      final nextMonth = now.month == 12 ? 1 : now.month + 1;
+      final nextYear = now.month == 12 ? now.year + 1 : now.year;
+      date = on(nextYear, nextMonth);
+    }
     return date;
   }
-
-  /// Most Indian issuers give ~18 days after the statement to pay.
-  DateTime? get estimatedDueDate => nextStatementDate?.add(const Duration(days: 18));
 
   UserCard copyWith({
     int? id,
     String? nickname,
     String? last4Digits,
     int? billingCycleDay,
+    int? dueDay,
     bool? hasVaultDetails,
   }) {
     return UserCard(
@@ -68,6 +82,7 @@ class UserCard {
       nickname: nickname ?? this.nickname,
       last4Digits: last4Digits ?? this.last4Digits,
       billingCycleDay: billingCycleDay ?? this.billingCycleDay,
+      dueDay: dueDay ?? this.dueDay,
       cardName: cardName,
       cardSlug: cardSlug,
       bankName: bankName,

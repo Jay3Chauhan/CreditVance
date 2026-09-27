@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
@@ -14,7 +15,13 @@ import '../../../../core/widgets/bank_logo.dart';
 import '../../../../core/widgets/card_thumb.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/widgets/state_views.dart';
+import '../../../content/data/content_repository.dart';
+import '../../../content/domain/content_models.dart';
+import '../../../content/presentation/providers/home_provider.dart';
+import '../../../content/presentation/widgets/home_feed.dart';
+import '../../../remote_config/presentation/remote_config_controller.dart';
 import '../providers/catalog_provider.dart';
+import 'card_detail_screen.dart';
 import '../widgets/catalog_card_tile.dart';
 import '../widgets/catalog_filter_sheet.dart';
 import 'compare_screen.dart';
@@ -44,6 +51,7 @@ class CatalogScreen extends StatelessWidget {
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                 slivers: [
                   const _ExploreAppBar(),
+                  const SliverToBoxAdapter(child: _SearchSuggestions()),
                   SliverPadding(
                     padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 0),
                     sliver: const _Results(),
@@ -71,6 +79,7 @@ class _ExploreAppBar extends StatelessWidget {
     return SliverAppBar(
       pinned: true,
       floating: true,
+      automaticallyImplyLeading: false,
       titleSpacing: gutter,
       toolbarHeight: 60,
       title: Column(
@@ -88,7 +97,7 @@ class _ExploreAppBar extends StatelessWidget {
         ],
       ),
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(104),
+        preferredSize: const Size.fromHeight(112),
         child: Column(
           children: [
             Padding(
@@ -131,11 +140,10 @@ class _SearchFieldState extends State<_SearchField> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return SizedBox(
-      height: AppDimensions.searchBarHeight,
-      child: ValueListenableBuilder<TextEditingValue>(
+    return ValueListenableBuilder<TextEditingValue>(
         valueListenable: _controller,
         builder: (context, value, _) => AppTextField(
+          compact: true,
           controller: _controller,
           hint: AppStrings.exploreSearchHint,
           prefixIcon: AppIcons.search,
@@ -151,7 +159,6 @@ class _SearchFieldState extends State<_SearchField> {
                   },
                 ),
         ),
-      ),
     );
   }
 }
@@ -190,6 +197,12 @@ class _QuickFilters extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: gutter),
       children: [
         AppChip(
+          label: 'Lounge',
+          icon: AppIcons.lounge,
+          selected: q.hasLounge == true,
+          onTap: () => p.setLoungeFilter(q.hasLounge == true ? null : true),
+        ),
+        AppChip(
           label: 'Lifetime free',
           icon: AppIcons.tag,
           selected: q.feeType == 'free',
@@ -198,8 +211,8 @@ class _QuickFilters extends StatelessWidget {
         AppChip(
           label: 'Top returns',
           icon: AppIcons.trendUp,
-          selected: q.sortBy == 'return',
-          onTap: () => p.setSortBy(q.sortBy == 'return' ? 'popular' : 'return'),
+          selected: q.sortBy == 'return_desc',
+          onTap: () => p.setSortBy(q.sortBy == 'return_desc' ? 'popular' : 'return_desc'),
         ),
         for (final bank in p.banks.take(14))
           AppChip(
@@ -216,9 +229,12 @@ class _QuickFilters extends StatelessWidget {
 class _Results extends StatelessWidget {
   const _Results();
 
+  static const _bannerAfter = 6;
+
   @override
   Widget build(BuildContext context) {
     final p = context.watch<CatalogProvider>();
+    final topBanner = context.select<HomeProvider, AppBanner?>((h) => h.bannersFor('catalog_top').firstOrNull);
     final cards = p.cards;
     final width = context.screenWidth - context.gutter(maxWidth: AppDimensions.wideContentMaxWidth) * 2;
     final columns = width >= 1000 ? 3 : (width >= 640 ? 2 : 1);
@@ -260,27 +276,37 @@ class _Results extends StatelessWidget {
           )
         : const SliverToBoxAdapter(child: SizedBox.shrink());
 
-    Widget tile(int i) => CatalogCardTile(key: ValueKey(cards[i].id), card: cards[i])
-        .animate()
-        .fadeIn(duration: AppDimensions.mediumAnim, delay: AppDimensions.staggerStep * (i % 10))
-        .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic);
+    Widget tile(int i) => CatalogCardTile(key: ValueKey(cards[i].id), card: cards[i]);
+    final banner = p.query.isDefault ? topBanner : null;
+    final split = banner != null && cards.length > _bannerAfter ? _bannerAfter : cards.length;
 
     return SliverMainAxisGroup(
       slivers: [
         header,
-        if (columns == 1)
+        if (columns == 1) ...[
           SliverList.separated(
-            itemCount: cards.length,
+            itemCount: split,
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (_, i) => tile(i),
-          )
-        else
+          ),
+          if (split < cards.length) ...[
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              sliver: SliverToBoxAdapter(child: PromoBanner(banner: banner!, compact: true)),
+            ),
+            SliverList.separated(
+              itemCount: cards.length - split,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (_, i) => tile(split + i),
+            ),
+          ],
+        ] else
           SliverGrid.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: columns,
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              mainAxisExtent: 104,
+              mainAxisExtent: 96,
             ),
             itemCount: cards.length,
             itemBuilder: (_, i) => tile(i),
@@ -330,7 +356,9 @@ class _CompareTray extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final compareOn = context.select<RemoteConfigController, bool>((c) => c.config.compareEnabled);
     final list = context.select<CatalogProvider, int>((p) => p.compareList.length);
+    if (!compareOn) return const SizedBox.shrink();
     final cards = context.read<CatalogProvider>().compareList;
     final bottom = context.navClearance - 8;
 
@@ -382,6 +410,77 @@ class _CompareTray extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SearchSuggestions extends StatefulWidget {
+  const _SearchSuggestions();
+
+  @override
+  State<_SearchSuggestions> createState() => _SearchSuggestionsState();
+}
+
+/// Owns the debounce timer and the suggestion notifier.
+class _SearchSuggestionsState extends State<_SearchSuggestions> {
+  Timer? _timer;
+  final _items = ValueNotifier<List<SearchSuggestion>>(const []);
+  String _query = '';
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _items.dispose();
+    super.dispose();
+  }
+
+  void _schedule(String query) {
+    _timer?.cancel();
+    if (query.length < 2) {
+      _items.value = const [];
+      return;
+    }
+    _timer = Timer(const Duration(milliseconds: 300), () async {
+      final result = await context.read<ContentRepository>().suggest(query);
+      if (!mounted || _query != query) return;
+      _items.value = result.dataOrNull ?? const [];
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final search = context.select<CatalogProvider, String>((p) => p.query.search ?? '');
+    if (search != _query) {
+      _query = search;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _schedule(search);
+      });
+    }
+    final gutter = context.gutter(maxWidth: AppDimensions.wideContentMaxWidth);
+    final c = context.colors;
+    return ValueListenableBuilder<List<SearchSuggestion>>(
+      valueListenable: _items,
+      builder: (context, items, _) => AnimatedSize(
+        duration: AppDimensions.fastAnim,
+        alignment: Alignment.topCenter,
+        child: items.isEmpty
+            ? const SizedBox(width: double.infinity)
+            : Padding(
+                padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 10),
+                child: ChipStrip(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    for (final item in items.take(6))
+                      AppChip(
+                        label: item.label,
+                        icon: AppIcons.search,
+                        color: c.textSecondary,
+                        onTap: () => CardDetailScreen.open(context, slug: item.slug),
+                      ),
+                  ],
+                ),
+              ),
       ),
     );
   }

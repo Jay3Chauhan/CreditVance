@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Brand and raw color tokens for CreditVance.
+/// Brand and raw color tokens for Credvert.
 ///
 /// Screens should not read these directly for surfaces or text — use the
 /// theme-aware `context.colors` (see [AppPalette]) so light, dark and system

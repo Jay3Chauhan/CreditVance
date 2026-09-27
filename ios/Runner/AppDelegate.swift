@@ -21,7 +21,7 @@ import UIKit
 /// Copies card numbers with a pasteboard expiry and keeps them off Universal Clipboard.
 final class SecureClipboardPlugin: NSObject, FlutterPlugin {
   static func register(with registrar: FlutterPluginRegistrar) {
-    let channel = FlutterMethodChannel(name: "creditvance/secure", binaryMessenger: registrar.messenger())
+    let channel = FlutterMethodChannel(name: "credvert/secure", binaryMessenger: registrar.messenger())
     registrar.addMethodCallDelegate(SecureClipboardPlugin(), channel: channel)
   }
 

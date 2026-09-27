@@ -1,10 +1,13 @@
-package com.example.cardsage
+package com.jaychauhan.credvert
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.PersistableBundle
@@ -15,10 +18,24 @@ import io.flutter.plugin.common.MethodChannel
 
 // local_auth's BiometricPrompt requires a FragmentActivity host.
 class MainActivity : FlutterFragmentActivity() {
-    private val channelName = "creditvance/secure"
-    private val clipLabel = "creditvance-secure"
+    private val channelName = "credvert/secure"
+    private val clipLabel = "credvert-secure"
     private val handler = Handler(Looper.getMainLooper())
     private var pendingClear: Runnable? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "credvert_general",
+                "Credvert updates",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = "App updates, announcements, and reminders"
+            }
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

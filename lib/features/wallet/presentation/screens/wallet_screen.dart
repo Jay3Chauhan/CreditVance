@@ -26,6 +26,9 @@ import '../../domain/entities/user_card.dart';
 import '../providers/wallet_provider.dart';
 import '../widgets/edit_card_sheet.dart';
 import '../widgets/visual_credit_card.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../content/presentation/providers/home_provider.dart';
+import '../../../content/presentation/widgets/wallet_overview.dart';
 import 'add_card_screen.dart';
 
 class WalletScreen extends StatelessWidget {
@@ -38,7 +41,14 @@ class WalletScreen extends StatelessWidget {
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () => context.read<WalletProvider>().loadCards(isRefresh: true),
+        onRefresh: () {
+          final home = context.read<HomeProvider>();
+          final signedIn = context.read<AuthProvider>().isSignedIn;
+          return Future.wait([
+            context.read<WalletProvider>().loadCards(isRefresh: true),
+            if (signedIn) home.loadWalletInsights(),
+          ]);
+        },
         edgeOffset: 100,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
@@ -70,6 +80,7 @@ class WalletScreen extends StatelessWidget {
             else if (wallet.viewMode == WalletViewMode.stack) ...[
               const SliverToBoxAdapter(child: _CardCarousel()),
               const SliverToBoxAdapter(child: _FocusedCardDetails()),
+              const SliverToBoxAdapter(child: WalletOverview()),
             ] else
               const _ManageList(),
             SliverToBoxAdapter(child: SizedBox(height: context.navClearance)),
@@ -92,6 +103,7 @@ class _WalletAppBar extends StatelessWidget {
     final gutter = context.gutter();
     return SliverAppBar(
       pinned: true,
+      automaticallyImplyLeading: false,
       titleSpacing: gutter,
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,7 +432,7 @@ class _ActionTile extends StatelessWidget {
       child: PressableScale(
         onTap: enabled
             ? onTap
-            : () => AppToast.info(context, message: 'No secure details saved for this card. Re-add it with the card number to enable.'),
+            : () => AppToast.info(context, message: 'No card number saved yet. Tap Edit below to add it securely.'),
         child: Container(
           height: 64,
           decoration: BoxDecoration(
@@ -666,7 +678,7 @@ void _showCardActions(BuildContext context, UserCard card) {
           SheetHeader(title: card.nickname.isEmpty ? card.cardName : card.nickname, subtitle: '${card.bankName} •• ${card.last4Digits}'),
           ListTile(
             leading: const Icon(AppIcons.edit, size: 20),
-            title: const Text('Edit nickname & statement day'),
+            title: const Text('Edit card details'),
             onTap: () {
               Navigator.pop(ctx);
               showEditCardSheet(context, card);

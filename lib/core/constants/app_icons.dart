@@ -58,6 +58,11 @@ class AppIcons {
   static const IconData mail = LucideIcons.mail;
   static const IconData signOut = LucideIcons.logOut;
   static const IconData bell = LucideIcons.bell;
+  static const IconData megaphone = LucideIcons.megaphone;
+  static const IconData download = LucideIcons.download;
+  static const IconData wrench = LucideIcons.wrench;
+  static const IconData construction = LucideIcons.construction;
+  static const IconData rocket = LucideIcons.rocket;
   static const IconData gear = LucideIcons.settings;
   static const IconData question = LucideIcons.circleQuestionMark;
   static const IconData document = LucideIcons.fileText;
@@ -103,12 +108,16 @@ class AppIcons {
   static const IconData rupee = LucideIcons.indianRupee;
   static const IconData trendUp = LucideIcons.trendingUp;
   static const IconData chartBar = LucideIcons.chartColumn;
+  static const IconData calculator = LucideIcons.calculator;
+  static const IconData sparkles = LucideIcons.sparkles;
   static const IconData crown = LucideIcons.crown;
   static const IconData star = LucideIcons.star;
   static const IconData medal = LucideIcons.medal;
   static const IconData gift = LucideIcons.gift;
   static const IconData tag = LucideIcons.tag;
   static const IconData seal = LucideIcons.badgeCheck;
+  static const IconData bookmark = LucideIcons.bookmark;
+  static const IconData bookmarkFill = LucideIcons.bookmarkCheck;
 
   // Spend categories
   static const IconData dining = LucideIcons.utensils;
@@ -153,5 +162,57 @@ class AppIcons {
     if (s.contains('upi')) return upi;
     if (s.contains('gift')) return giftCards;
     return general;
+  }
+
+  /// Maps a backend Material `icon_key` onto the Lucide set used by the app.
+  static IconData fromMaterial(String? key) {
+    switch (key) {
+      case 'restaurant' || 'dining' || 'local_dining':
+        return dining;
+      case 'flight' || 'flight_takeoff' || 'airplanemode_active':
+        return flights;
+      case 'local_gas_station' || 'local_gas_station_outlined':
+        return fuel;
+      case 'shopping_cart' || 'local_grocery_store':
+        return grocery;
+      case 'shopping_bag' || 'shopping_bag_outlined':
+        return shopping;
+      case 'home' || 'house':
+        return rent;
+      case 'luggage' || 'card_travel' || 'travel_explore':
+        return travel;
+      case 'bolt' || 'flash_on' || 'receipt_long':
+        return utilities;
+      case 'movie' || 'theaters' || 'live_tv':
+        return entertainment;
+      case 'local_hospital' || 'medical_services':
+        return medical;
+      case 'school':
+        return education;
+      case 'public' || 'language' || 'language_outlined':
+        return international;
+      case 'account_balance' || 'assured_workload':
+        return government;
+      case 'payments' || 'currency_rupee' || 'account_balance_wallet':
+        return upi;
+      case 'card_giftcard' || 'redeem':
+        return gift;
+      case 'store' || 'storefront':
+        return general;
+      case 'auto_awesome' || 'tips_and_updates':
+        return navHome;
+      case 'credit_card' || 'wallet' || 'account_balance_wallet_outlined':
+        return card;
+      case 'calculate' || 'pie_chart':
+        return navRewards;
+      case 'compare_arrows' || 'balance':
+        return compare;
+      case 'bookmark' || 'bookmark_border':
+        return bookmark;
+      case 'savings':
+        return piggyBank;
+      default:
+        return key == null || key.isEmpty ? general : forCategory(key);
+    }
   }
 }

@@ -95,6 +95,43 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> updateName(String fullName) async {
+    final result = await _repository.updateName(fullName);
+    if (result case ApiSuccess(:final data)) {
+      _user = data;
+      notifyListeners();
+      return true;
+    }
+    _errorMessage = (result as ApiFailure<User>).message;
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> deleteAccount() async {
+    final result = await _repository.deleteAccount();
+    if (!result.isSuccess) {
+      _errorMessage = result.errorOrNull ?? 'Could not delete the account';
+      notifyListeners();
+      return false;
+    }
+    _user = null;
+    _status = AuthStatus.signedOut;
+    notifyListeners();
+    return true;
+  }
+
+  Future<ApiResult<String?>> forgotPassword(String email) => _repository.forgotPassword(email);
+
+  Future<bool> resetPassword({required String token, required String newPassword}) async {
+    final result = await _repository.resetPassword(token: token, newPassword: newPassword);
+    if (!result.isSuccess) {
+      _errorMessage = result.errorOrNull ?? 'Could not reset the password';
+      notifyListeners();
+      return false;
+    }
+    return true;
+  }
+
   Future<void> logout() async {
     await _repository.logout();
     _user = null;

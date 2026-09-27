@@ -19,7 +19,14 @@ import '../../../../core/widgets/card_thumb.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/widgets/state_views.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../calculator/presentation/providers/calculator_provider.dart';
+import '../../../content/content_actions.dart';
+import '../../../remote_config/presentation/remote_config_controller.dart';
+import '../../../content/presentation/providers/home_provider.dart';
+import '../../../content/presentation/widgets/home_feed.dart';
+import '../../../content/domain/content_models.dart';
+import '../../../content/presentation/providers/shortlist_provider.dart';
 import '../../../shell/presentation/providers/navigation_provider.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../../wallet/presentation/screens/add_card_screen.dart';
@@ -29,6 +36,7 @@ import '../../domain/entities/catalog_card.dart';
 import '../../domain/repositories/catalog_repository.dart';
 import '../providers/card_detail_provider.dart';
 import '../providers/catalog_provider.dart';
+import 'compare_screen.dart';
 
 class CardDetailScreen extends StatelessWidget {
   final String slug;
@@ -92,15 +100,25 @@ class _DetailBody extends StatelessWidget {
               delegate: SliverChildListDelegate([
                 _TitleBlock(card: card),
                 const SizedBox(height: AppDimensions.p16),
-                _StatsGrid(card: card),
-                const SizedBox(height: AppDimensions.p16),
+                _KeyNumbers(card: card),
+                const SizedBox(height: AppDimensions.p12),
                 _EstimateCard(card: card),
                 if (card.overview != null && card.overview!.isNotEmpty) ...[
-                  const SizedBox(height: AppDimensions.p16),
+                  const SectionHeader(title: 'About this card', padding: EdgeInsets.fromLTRB(0, AppDimensions.p24, 0, AppDimensions.p8)),
                   _Overview(text: card.overview!),
                 ],
-                const SizedBox(height: AppDimensions.p8),
                 ..._sections(context, card, p.tabs),
+                const SectionHeader(title: 'Fees & value', padding: EdgeInsets.fromLTRB(0, AppDimensions.p24, 0, AppDimensions.p10)),
+                _FeeSheet(card: card),
+                if (card.applyLink != null) ...[
+                  const SizedBox(height: AppDimensions.p16),
+                  AppButton.outline(
+                    label: 'Apply on the bank site',
+                    icon: AppIcons.arrowUpRight,
+                    onPressed: () => openExternalUrl(context, card.applyLink!),
+                  ),
+                ],
+                _CardPromos(slug: card.slug),
               ]),
             ),
           ),
@@ -113,6 +131,26 @@ class _DetailBody extends StatelessWidget {
   List<Widget> _sections(BuildContext context, CatalogCard card, Map<String, CardTab> apiTabs) {
     final c = context.colors;
     final sections = <Widget>[];
+
+    if (card.earnRates.isNotEmpty && !apiTabs.containsKey('earn-categories')) {
+      sections.add(_ExpandableSection(
+        icon: AppIcons.percent,
+        title: 'Reward rates',
+        initiallyExpanded: true,
+        child: _RateBars(
+          rows: [
+            for (final rate in card.earnRates)
+              (
+                icon: AppIcons.forCategory(rate.categorySlug),
+                label: rate.categorySlug,
+                value: CurrencyFormatter.formatPercentage(rate.ratePercent),
+                amount: rate.ratePercent,
+                note: rate.capMonthly == null ? null : 'Capped at ${CurrencyFormatter.compact(rate.capMonthly!)}/month',
+              ),
+          ],
+        ),
+      ));
+    }
 
     for (final tab in apiTabs.values) {
       sections.add(_ExpandableSection(
@@ -195,7 +233,7 @@ class _DetailAppBar extends StatelessWidget {
       stretch: true,
       expandedHeight: cardWidth / AppDimensions.cardAspectRatio + 110,
       title: Text(card.shortName, style: context.text.titleMedium),
-      actions: const [_CompareAction(), SizedBox(width: 8)],
+      actions: const [_SaveAction(), SizedBox(width: 12)],
       flexibleSpace: FlexibleSpaceBar(
         stretchModes: const [StretchMode.zoomBackground],
         background: DecoratedBox(
@@ -230,24 +268,25 @@ class _DetailAppBar extends StatelessWidget {
   }
 }
 
-class _CompareAction extends StatelessWidget {
-  const _CompareAction();
+class _SaveAction extends StatelessWidget {
+  const _SaveAction();
 
   @override
   Widget build(BuildContext context) {
     final card = context.watch<CardDetailProvider>().card!;
-    final inCompare = context.select<CatalogProvider, bool>((p) => p.isInCompare(card.id));
+    final saved = context.select<ShortlistProvider, bool>((s) => s.isSaved(card.id));
     return AppIconButton(
-      icon: inCompare ? AppIcons.compareActive : AppIcons.compare,
-      color: inCompare ? context.colors.accent : null,
-      tooltip: 'Compare',
-      onPressed: () {
-        final ok = context.read<CatalogProvider>().toggleCompare(card);
-        if (!ok) {
-          AppToast.info(context, message: 'You can compare up to ${CatalogProvider.maxCompare} cards');
-        } else if (!inCompare) {
-          AppToast.success(context, message: 'Added to compare');
+      icon: saved ? AppIcons.bookmarkFill : AppIcons.bookmark,
+      color: saved ? context.colors.accent : null,
+      tooltip: saved ? 'Saved' : 'Shortlist',
+      onPressed: () async {
+        if (!context.read<AuthProvider>().isSignedIn) {
+          AppToast.info(context, message: 'Sign in to save cards you might apply for');
+          return;
         }
+        final ok = await context.read<ShortlistProvider>().toggle(card.id);
+        if (!context.mounted || ok) return;
+        AppToast.error(context, message: 'Could not update your shortlist');
       },
     );
   }
@@ -289,57 +328,139 @@ class _TitleBlock extends StatelessWidget {
   }
 }
 
-class _StatsGrid extends StatelessWidget {
+class _KeyNumbers extends StatelessWidget {
   final CatalogCard card;
-  const _StatsGrid({required this.card});
+  const _KeyNumbers({required this.card});
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final stats = [
-      ('Reward return', card.returnLabel, AppIcons.percent, c.success),
-      ('Annual fee', card.annualFee == 0 ? 'Free' : CurrencyFormatter.format(card.annualFee), AppIcons.receipt, c.textPrimary),
-      ('Joining fee', card.joiningFee == 0 ? 'Free' : CurrencyFormatter.format(card.joiningFee), AppIcons.tag, c.textPrimary),
-      ('Forex markup', card.forexMarkup == null ? '—' : CurrencyFormatter.formatPercentage(card.forexMarkup!), AppIcons.international, c.textPrimary),
+    Widget cell(String label, String value, {Color? color}) => Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: AppTypography.numeric(16, color: color ?? c.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Text(label, style: context.text.labelSmall, maxLines: 1),
+              ],
+            ),
+          ),
+        );
+    Widget divider() => VerticalDivider(width: 1, thickness: 1, color: c.border);
+
+    return AppSurface(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            cell('Reward return', card.returnLabel, color: c.accent),
+            divider(),
+            cell('Annual fee', card.annualFee == 0 ? 'Free' : CurrencyFormatter.compact(card.annualFee)),
+            divider(),
+            cell('Forex markup', card.forexMarkup == null ? '—' : CurrencyFormatter.formatPercentage(card.forexMarkup!)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FeeSheet extends StatelessWidget {
+  final CatalogCard card;
+  const _FeeSheet({required this.card});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    String money(double v) => v == 0 ? 'Free' : CurrencyFormatter.format(v);
+    final rows = <(IconData, String, String)>[
+      (AppIcons.tag, 'Joining fee', money(card.joiningFee)),
+      (AppIcons.receipt, 'Annual fee', money(card.annualFee)),
+      if (card.feeWaiverSpend != null && card.feeWaiverSpend! > 0)
+        (AppIcons.seal, 'Annual fee waived at', '${CurrencyFormatter.compact(card.feeWaiverSpend!)} spend'),
+      (AppIcons.international, 'Forex markup', card.forexMarkup == null ? '—' : CurrencyFormatter.formatPercentage(card.forexMarkup!)),
+      if (card.pointValueInr != null) (AppIcons.coins, 'Value of 1 point', '₹${card.pointValueInr!.toStringAsFixed(2)}'),
+      (AppIcons.card, 'Network', CatalogCardModel.formatNetwork(card.network)),
     ];
-    return LayoutBuilder(builder: (context, box) {
-      final cols = box.maxWidth >= 560 ? 4 : 2;
-      return GridView.count(
-        crossAxisCount: cols,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: cols == 4 ? 1.5 : 2.3,
-        padding: EdgeInsets.zero,
+    return AppSurface(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
         children: [
-          for (final s in stats)
-            AppSurface(
-              padding: const EdgeInsets.all(12),
-              borderRadius: AppDimensions.roundedMd,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) Divider(height: 1, indent: 44, color: c.border),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(s.$3, size: 13, color: c.textTertiary),
-                      const SizedBox(width: 5),
-                      Flexible(child: Text(s.$1, style: context.text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(s.$2, style: AppTypography.numeric(17, color: s.$4)),
-                  ),
+                  Icon(rows[i].$1, size: 16, color: c.textTertiary),
+                  const SizedBox(width: 14),
+                  Expanded(child: Text(rows[i].$2, style: context.text.bodyMedium)),
+                  Text(rows[i].$3, style: context.text.labelLarge!.copyWith(color: c.textPrimary)),
                 ],
               ),
             ),
+          ],
         ],
-      );
-    });
+      ),
+    );
+  }
+}
+
+typedef _RateRow = ({IconData icon, String label, String value, double amount, String? note});
+
+/// Horizontal bars scaled to the best rate on the card.
+class _RateBars extends StatelessWidget {
+  final List<_RateRow> rows;
+  const _RateBars({required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final max = rows.fold<double>(0, (m, r) => r.amount > m ? r.amount : m);
+    return Column(
+      children: [
+        for (final row in rows)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(row.icon, size: 14, color: c.textSecondary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(row.label, style: context.text.bodyMedium!.copyWith(color: c.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                    Text(row.value, style: AppTypography.numeric(12.5, color: row.amount == max ? c.accent : c.textPrimary)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: AppDimensions.roundedFull,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: max == 0 ? 0 : row.amount / max),
+                    duration: AppDimensions.slowAnim,
+                    curve: Curves.easeOutCubic,
+                    builder: (_, v, _) => LinearProgressIndicator(
+                      value: v,
+                      minHeight: 6,
+                      backgroundColor: c.surfaceHigh,
+                      color: row.amount == max ? c.accent : c.tint(c.accent, 0.45),
+                    ),
+                  ),
+                ),
+                if (row.note != null) ...[
+                  const SizedBox(height: 4),
+                  Text(row.note!, style: context.text.labelSmall),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
   }
 }
 
@@ -358,7 +479,7 @@ class _EstimateCard extends StatelessWidget {
 
     return AppSurface(
       tone: SurfaceTone.accent,
-      tintColor: net >= 0 ? c.success : c.warning,
+      tintColor: c.accent,
       padding: const EdgeInsets.all(14),
       onTap: () {
         calc.selectCatalogCard(card);
@@ -367,7 +488,7 @@ class _EstimateCard extends StatelessWidget {
       },
       child: Row(
         children: [
-          IconHalo(icon: AppIcons.chartBar, color: net >= 0 ? c.success : c.warning),
+          IconHalo(icon: AppIcons.calculator),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -376,7 +497,7 @@ class _EstimateCard extends StatelessWidget {
                 Text('Net value on your spends', style: context.text.bodySmall),
                 Text(
                   '${CurrencyFormatter.format(net)} / year',
-                  style: AppTypography.numeric(17, color: net >= 0 ? c.success : c.warning),
+                  style: AppTypography.numeric(17, color: net >= 0 ? c.textPrimary : c.danger),
                 ),
                 Text(
                   'At ${CurrencyFormatter.compact(monthly)}/month · tap to customise',
@@ -521,18 +642,20 @@ class _TabContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final row in tab.earnRates)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              children: [
-                Icon(AppIcons.forCategory(row.category ?? row.name), size: 16, color: c.textSecondary),
-                const SizedBox(width: 10),
-                Expanded(child: Text(row.name, style: context.text.bodyMedium!.copyWith(color: c.textPrimary))),
-                Text(row.label, style: AppTypography.numeric(13, color: c.success)),
-              ],
-            ),
+        if (tab.earnRates.isNotEmpty)
+          _RateBars(
+            rows: [
+              for (final row in tab.earnRates)
+                (
+                  icon: AppIcons.forCategory(row.category ?? row.name),
+                  label: row.name,
+                  value: row.label,
+                  amount: row.pointsPerHundred,
+                  note: null,
+                ),
+            ],
           ),
+        if (tab.earnRates.isNotEmpty && tab.bullets.isNotEmpty) const SizedBox(height: 8),
         if (tab.bullets.isNotEmpty) _Bullets(items: tab.bullets),
         if (tab.exclusions.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -549,6 +672,45 @@ class _TabContent extends StatelessWidget {
   }
 }
 
+class _CardPromos extends StatefulWidget {
+  final String slug;
+  const _CardPromos({required this.slug});
+
+  @override
+  State<_CardPromos> createState() => _CardPromosState();
+}
+
+/// Triggers the one-off promotions fetch for this card.
+class _CardPromosState extends State<_CardPromos> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<HomeProvider>().loadCardPromotions(widget.slug);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final promos = context.select<HomeProvider, List<Promotion>>((h) => h.promotionsForCard(widget.slug));
+    if (promos.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionHeader(title: 'Offers & guides', padding: EdgeInsets.fromLTRB(0, AppDimensions.p24, 0, AppDimensions.p10)),
+        SizedBox(
+          height: 132,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            itemCount: promos.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => SizedBox(width: 236, child: PromoCard(promo: promos[i])),
+          ),
+        ),
+      ],
+    ).animate().fadeIn(duration: AppDimensions.mediumAnim);
+  }
+}
+
 class _ActionBar extends StatelessWidget {
   final CatalogCard card;
   const _ActionBar({required this.card});
@@ -557,7 +719,7 @@ class _ActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final owned = context.select<WalletProvider, bool>((w) => w.cards.any((u) => u.cardId == card.id));
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: c.surface,
         border: Border(top: BorderSide(color: c.border)),
@@ -569,33 +731,64 @@ class _ActionBar extends StatelessWidget {
           child: ContentWidth(
             child: Row(
               children: [
+                Expanded(child: _CompareButton(card: card)),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(card.returnLabel, style: AppTypography.numeric(16, color: c.success)),
-                      Text('reward return', style: context.text.labelSmall),
-                    ],
+                  child: AppButton(
+                    label: owned ? 'In your wallet' : 'I have this card',
+                    icon: owned ? AppIcons.check : AppIcons.add,
+                    variant: owned ? AppButtonVariant.tonal : AppButtonVariant.primary,
+                    onPressed: owned
+                        ? () {
+                            context.read<NavigationProvider>().setIndex(NavigationProvider.wallet);
+                            Navigator.of(context).popUntil((r) => r.isFirst);
+                          }
+                        : () => AddCardScreen.open(context, card: card),
                   ),
-                ),
-                AppButton(
-                  label: owned ? 'In your wallet' : 'I have this card',
-                  icon: owned ? AppIcons.check : AppIcons.add,
-                  expand: false,
-                  variant: owned ? AppButtonVariant.tonal : AppButtonVariant.primary,
-                  onPressed: owned
-                      ? () {
-                          context.read<NavigationProvider>().setIndex(NavigationProvider.wallet);
-                          Navigator.of(context).popUntil((r) => r.isFirst);
-                        }
-                      : () => AddCardScreen.open(context, card: card),
                 ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The single entry point for building a comparison.
+class _CompareButton extends StatelessWidget {
+  final CatalogCard card;
+  const _CompareButton({required this.card});
+
+  @override
+  Widget build(BuildContext context) {
+    final (inCompare, count) = context.select<CatalogProvider, (bool, int)>(
+      (p) => (p.isInCompare(card.id), p.compareList.length),
+    );
+    final ready = inCompare && count >= 2;
+    return AppButton.outline(
+      label: ready ? 'Compare $count' : (inCompare ? 'Added' : 'Compare'),
+      icon: ready ? AppIcons.compareActive : (inCompare ? AppIcons.check : AppIcons.compare),
+      onPressed: () {
+        final catalog = context.read<CatalogProvider>();
+        if (!context.read<RemoteConfigController>().config.compareEnabled) {
+          AppToast.info(context, message: 'Comparing cards is turned off right now');
+          return;
+        }
+        if (ready) {
+          CompareScreen.open(context);
+          return;
+        }
+        if (inCompare) {
+          catalog.toggleCompare(card);
+          return;
+        }
+        if (!catalog.toggleCompare(card)) {
+          AppToast.info(context, message: 'You can compare up to ${CatalogProvider.maxCompare} cards');
+        } else if (catalog.compareList.length < 2) {
+          AppToast.info(context, message: 'Added. Open another card and tap Compare');
+        }
+      },
     );
   }
 }

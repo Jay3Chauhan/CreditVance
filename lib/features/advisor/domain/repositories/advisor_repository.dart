@@ -7,5 +7,6 @@ abstract class AdvisorRepository {
     required double spendAmount,
     String? merchantName,
     bool isInternational = false,
+    List<int> cardIds = const [],
   });
 }

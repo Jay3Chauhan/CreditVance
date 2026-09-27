@@ -9,6 +9,8 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_surface.dart';
 import '../../../../core/widgets/card_thumb.dart';
 import '../../../../core/widgets/state_views.dart';
+import '../../../content/data/content_repository.dart';
+import '../../../content/domain/content_models.dart';
 import '../../../calculator/domain/reward_engine.dart';
 import '../../../calculator/presentation/providers/calculator_provider.dart';
 import '../../data/models/catalog_card_model.dart';
@@ -31,7 +33,7 @@ class CompareScreen extends StatelessWidget {
           ? EmptyStateView(
               icon: AppIcons.compare,
               title: 'Pick at least 2 cards',
-              message: 'Tap the scale icon on any card in Explore to add it here.',
+              message: 'Open a card and tap Compare at the bottom. Add up to 4 cards.',
               secondaryLabel: 'Back to Explore',
               onSecondary: () => Navigator.pop(context),
             )
@@ -125,6 +127,8 @@ class _CompareTable extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            _ServerCompare(slugs: [for (final card in cards) card.slug]),
           ],
         ),
       ).animate().fadeIn(duration: AppDimensions.mediumAnim);
@@ -234,6 +238,77 @@ class _MetricRow extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServerCompare extends StatefulWidget {
+  final List<String> slugs;
+  const _ServerCompare({required this.slugs});
+
+  @override
+  State<_ServerCompare> createState() => _ServerCompareState();
+}
+
+/// Holds the one-off compare request for the selected slugs.
+class _ServerCompareState extends State<_ServerCompare> {
+  late final Future<CardCompareResult?> _request =
+      context.read<ContentRepository>().compare(widget.slugs).then((r) => r.dataOrNull);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<CardCompareResult?>(
+      future: _request,
+      builder: (context, snapshot) => AnimatedSize(
+        duration: AppDimensions.mediumAnim,
+        alignment: Alignment.topCenter,
+        child: _content(context, snapshot.data),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, CardCompareResult? result) {
+    if (result == null || (result.rows.isEmpty && result.categoryRates.isEmpty)) return const SizedBox.shrink();
+    final c = context.colors;
+    String show(num? value) {
+      if (value == null) return '—';
+      if (value == value.roundToDouble()) return value.toInt().toString();
+      return value.toStringAsFixed(1);
+    }
+
+    Widget line(String label, Map<String, num?> values, String? winner) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Expanded(flex: 2, child: Text(label, style: context.text.bodySmall)),
+            for (final slug in widget.slugs)
+              Expanded(
+                child: Text(
+                  show(values[slug]),
+                  textAlign: TextAlign.center,
+                  style: AppTypography.numeric(13, color: winner == slug ? c.success : c.textPrimary),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return AppSurface(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Side by side', style: context.text.titleSmall),
+          for (final row in result.rows) line(row.label, row.values, row.winnerSlug),
+          if (result.categoryRates.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Category return', style: context.text.labelMedium),
+            for (final rate in result.categoryRates) line(rate.categorySlug, rate.rates, rate.winnerSlug),
+          ],
         ],
       ),
     );

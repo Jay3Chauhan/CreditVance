@@ -35,11 +35,6 @@ class CatalogRepositoryImpl implements CatalogRepository {
   }) async {
     final cacheable = page == 1 && query.isDefault;
 
-    if (cacheable && !forceRefresh) {
-      final cached = _readCachedFirstPage();
-      if (cached != null) return ApiSuccess(cached);
-    }
-
     final params = <String, dynamic>{
       'page': page,
       'limit': limit,
@@ -48,6 +43,8 @@ class CatalogRepositoryImpl implements CatalogRepository {
       'bank_slug': ?query.bankSlug,
       'network': ?query.network,
       'fee_type': ?query.feeType,
+      'lounge_type': ?query.loungeType,
+      if (query.hasLounge != null) 'has_lounge': query.hasLounge,
       if (query.popularOnly) 'is_popular': true,
     };
 
@@ -178,14 +175,20 @@ class CatalogRepositoryImpl implements CatalogRepository {
       if (cached != null) {
         try {
           final decoded = jsonDecode(cached) as List;
-          return ApiSuccess(decoded.map((e) => CategoryModel.fromJson(e as Map<String, dynamic>)).toList());
+          final list = decoded.map((e) => CategoryModel.fromJson(e as Map<String, dynamic>)).toList();
+          list.sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+          return ApiSuccess(list);
         } catch (_) {}
       }
     }
 
     final result = await _apiClient.get<List<SpendCategory>>(
       path: ApiEndpoints.categories,
-      fromJson: (data) => (data as List).map((e) => CategoryModel.fromJson(e as Map<String, dynamic>)).toList(),
+      fromJson: (data) {
+        final list = (data as List).map((e) => CategoryModel.fromJson(e as Map<String, dynamic>)).toList();
+        list.sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+        return list;
+      },
     );
 
     if (result case ApiSuccess(:final data)) {

@@ -1,4 +1,4 @@
-# CardSage Project Agent Guidelines & Vibe-Coding Rules
+# Credvert Project Agent Guidelines & Vibe-Coding Rules
 *Target IDEs: Antigravity & Cursor*
 
 ## 1. Architectural Philosophy: Flutter Clean Architecture

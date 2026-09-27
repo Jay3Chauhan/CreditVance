@@ -16,6 +16,7 @@ class AdvisorRepositoryImpl implements AdvisorRepository {
     required double spendAmount,
     String? merchantName,
     bool isInternational = false,
+    List<int> cardIds = const [],
   }) {
     return _apiClient.post<AdvisorRecommendation>(
       path: ApiEndpoints.advisorRecommend,
@@ -24,6 +25,7 @@ class AdvisorRepositoryImpl implements AdvisorRepository {
         'spend_amount': spendAmount,
         if (merchantName != null && merchantName.isNotEmpty) 'merchant_name': merchantName,
         'is_international': isInternational,
+        if (cardIds.isNotEmpty) 'card_ids': cardIds,
       },
       fromJson: (data) => AdvisorRecommendationModel.fromJson(
         data as Map<String, dynamic>,

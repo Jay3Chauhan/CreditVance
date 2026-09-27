@@ -118,6 +118,7 @@ class CalculatorProvider extends ChangeNotifier {
         maxRate: c.maxReturnRate,
         annualFee: c.annualFee,
         feeWaiverSpend: c.feeWaiverSpend,
+        categoryRates: {for (final r in c.earnRates) r.categorySlug: r.ratePercent},
       );
 
   static RewardSubject subjectFromWallet(UserCard c) => RewardSubject(

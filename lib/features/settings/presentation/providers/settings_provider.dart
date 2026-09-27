@@ -40,6 +40,8 @@ class SettingsProvider extends ChangeNotifier {
 
   void setHaptics(bool enabled) => _update(_settings.copyWith(hapticsEnabled: enabled));
 
+  void setDiagnostics(bool enabled) => _update(_settings.copyWith(diagnosticsEnabled: enabled));
+
   void _update(AppSettings next) {
     _settings = next;
     _applySideEffects();

@@ -78,6 +78,14 @@ class AdvisorProvider extends ChangeNotifier {
     _schedule();
   }
 
+  /// Applies a banner / promotion deep link (`/advisor?category=Dining`).
+  void applyDeepLink({String? category, bool? international}) {
+    if (category != null && category.isNotEmpty) _category = category;
+    if (international != null) _isInternational = international;
+    notifyListeners();
+    _schedule(immediate: true);
+  }
+
   void setInternational(bool value) {
     if (_isInternational == value) return;
     _isInternational = value;
@@ -107,6 +115,7 @@ class AdvisorProvider extends ChangeNotifier {
       categorySlug: _category,
       spendAmount: _spendAmount,
       isInternational: _isInternational,
+      cardIds: _useLocalRanking ? _wallet.map((c) => c.cardId).where((id) => id > 0).toList() : const [],
     );
     if (seq != _seq) return;
 
@@ -115,7 +124,7 @@ class AdvisorProvider extends ChangeNotifier {
     switch (result) {
       case ApiSuccess(:final data):
         var rec = data;
-        if ((_useLocalRanking || !rec.hasWalletPick) && local.isNotEmpty) {
+        if (!rec.hasWalletPick && local.isNotEmpty) {
           rec = rec.copyWith(
             topCard: local.first,
             alternatives: local.skip(1).toList(),

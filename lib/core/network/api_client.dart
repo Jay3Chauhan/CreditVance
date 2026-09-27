@@ -34,6 +34,7 @@ class ApiClient {
           ),
         );
     _authInterceptor = AuthInterceptor(cacheService);
+    _authInterceptor.bind(_dio);
     _dio.interceptors.add(_authInterceptor);
     _dio.interceptors.add(const LoggingInterceptor());
   }
@@ -61,6 +62,13 @@ class ApiClient {
     required T Function(dynamic data) fromJson,
   }) =>
       _send(() => _dio.patch(path, data: data), fromJson);
+
+  Future<ApiResult<T>> put<T>({
+    required String path,
+    dynamic data,
+    required T Function(dynamic data) fromJson,
+  }) =>
+      _send(() => _dio.put(path, data: data), fromJson);
 
   Future<ApiResult<T>> delete<T>({
     required String path,

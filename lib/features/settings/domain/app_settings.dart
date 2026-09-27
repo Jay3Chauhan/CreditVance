@@ -9,6 +9,7 @@ class AppSettings {
   final bool appLockEnabled;
   final bool blockScreenshots;
   final bool hapticsEnabled;
+  final bool diagnosticsEnabled;
 
   const AppSettings({
     this.themeMode = ThemeMode.system,
@@ -17,6 +18,7 @@ class AppSettings {
     this.appLockEnabled = false,
     this.blockScreenshots = true,
     this.hapticsEnabled = true,
+    this.diagnosticsEnabled = true,
   });
 
   static const List<int> clipboardOptions = [15, 30, 60, 120];
@@ -29,6 +31,7 @@ class AppSettings {
     bool? appLockEnabled,
     bool? blockScreenshots,
     bool? hapticsEnabled,
+    bool? diagnosticsEnabled,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -37,6 +40,7 @@ class AppSettings {
       appLockEnabled: appLockEnabled ?? this.appLockEnabled,
       blockScreenshots: blockScreenshots ?? this.blockScreenshots,
       hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
+      diagnosticsEnabled: diagnosticsEnabled ?? this.diagnosticsEnabled,
     );
   }
 
@@ -51,6 +55,7 @@ class AppSettings {
       appLockEnabled: json['app_lock_enabled'] as bool? ?? false,
       blockScreenshots: json['block_screenshots'] as bool? ?? true,
       hapticsEnabled: json['haptics_enabled'] as bool? ?? true,
+      diagnosticsEnabled: json['diagnostics_enabled'] as bool? ?? true,
     );
   }
 
@@ -61,5 +66,6 @@ class AppSettings {
         'app_lock_enabled': appLockEnabled,
         'block_screenshots': blockScreenshots,
         'haptics_enabled': hapticsEnabled,
+        'diagnostics_enabled': diagnosticsEnabled,
       };
 }

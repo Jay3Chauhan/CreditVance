@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -55,12 +53,25 @@ class MainShellScreen extends StatelessWidget {
       nav.setIndex(i);
     }
 
-    final stack = _FadeIndexedStack(
+    final stack = IndexedStack(
       index: nav.currentIndex,
+      sizing: StackFit.expand,
       children: List.generate(
         _destinations.length,
         (i) => nav.isVisited(i) ? _screenFor(i) : const SizedBox.shrink(),
       ),
+    );
+
+    final phoneBody = Stack(
+      children: [
+        stack,
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _BottomBar(index: nav.currentIndex, onSelect: select),
+        ),
+      ],
     );
 
     return PopScope(
@@ -69,7 +80,6 @@ class MainShellScreen extends StatelessWidget {
         if (!didPop) nav.setIndex(NavigationProvider.home);
       },
       child: Scaffold(
-        extendBody: true,
         body: useRail
             ? Row(
                 children: [
@@ -88,39 +98,8 @@ class MainShellScreen extends StatelessWidget {
                   ),
                 ],
               )
-            : stack,
-        bottomNavigationBar: useRail ? null : _BottomBar(index: nav.currentIndex, onSelect: select),
+            : phoneBody,
       ),
-    );
-  }
-}
-
-/// IndexedStack that cross-fades between children while keeping state.
-class _FadeIndexedStack extends StatelessWidget {
-  final int index;
-  final List<Widget> children;
-
-  const _FadeIndexedStack({required this.index, required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        for (var i = 0; i < children.length; i++)
-          IgnorePointer(
-            ignoring: i != index,
-            child: TickerMode(
-              enabled: i == index,
-              child: AnimatedOpacity(
-                opacity: i == index ? 1 : 0,
-                duration: AppDimensions.fastAnim,
-                curve: Curves.easeOut,
-                child: children[i],
-              ),
-            ),
-          ),
-      ],
     );
   }
 }
@@ -143,17 +122,16 @@ class _BottomBar extends StatelessWidget {
           heightFactor: 1,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
-            child: ClipRRect(
+            child: Material(
+              color: c.surface,
+              elevation: 8,
+              shadowColor: c.shadow,
               borderRadius: AppDimensions.roundedXl,
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
+              child: Container(
                   height: 62,
                   decoration: BoxDecoration(
-                    color: c.surface.withValues(alpha: c.isDark ? 0.82 : 0.9),
                     borderRadius: AppDimensions.roundedXl,
                     border: Border.all(color: c.border),
-                    boxShadow: [BoxShadow(color: c.shadow, blurRadius: 24, offset: const Offset(0, 8))],
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Row(
@@ -169,7 +147,6 @@ class _BottomBar extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
             ),
           ),
         ),

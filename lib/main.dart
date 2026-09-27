@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:toastification/toastification.dart';
 
 import 'core/constants/app_strings.dart';
+import 'core/firebase/analytics_service.dart';
+import 'core/firebase/firebase_bootstrap.dart';
+import 'core/navigation/root_navigator.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/local_cache_service.dart';
 import 'core/storage/secure_vault_service.dart';
@@ -16,9 +21,15 @@ import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/screens/auth_screen.dart';
 import 'features/auth/presentation/widgets/app_lock_gate.dart';
 import 'features/calculator/presentation/providers/calculator_provider.dart';
+import 'features/content/data/content_repository.dart';
+import 'features/content/presentation/providers/home_provider.dart';
+import 'features/content/presentation/providers/shortlist_provider.dart';
 import 'features/catalog/data/repositories/catalog_repository_impl.dart';
 import 'features/catalog/domain/repositories/catalog_repository.dart';
 import 'features/catalog/presentation/providers/catalog_provider.dart';
+import 'features/remote_config/data/remote_config_source.dart';
+import 'features/remote_config/presentation/app_status_gate.dart';
+import 'features/remote_config/presentation/remote_config_controller.dart';
 import 'features/settings/presentation/providers/settings_provider.dart';
 import 'features/shell/presentation/providers/navigation_provider.dart';
 import 'features/shell/presentation/screens/main_shell_screen.dart';
@@ -27,6 +38,7 @@ import 'features/wallet/presentation/providers/wallet_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final firebaseReady = await FirebaseBootstrap.start();
 
   final prefs = await SharedPreferences.getInstance();
   final cache = LocalCacheService(prefs);
@@ -37,11 +49,26 @@ Future<void> main() async {
   final walletRepo = WalletRepositoryImpl(apiClient: api, vaultService: vault, cacheService: cache);
 
   final settings = SettingsProvider(cache);
+  RemoteConfigSource remoteSource = StaticRemoteConfigSource();
+  if (firebaseReady) {
+    try {
+      remoteSource = await FirebaseRemoteConfigSource.create();
+    } catch (error, stack) {
+      debugPrint('Remote Config setup failed: $error\n$stack');
+    }
+  }
+  final remoteConfig = RemoteConfigController(cache: cache, source: remoteSource);
+  unawaited(remoteConfig.start());
+
   final auth = AuthProvider(AuthRepositoryImpl(apiClient: api, cacheService: cache))..restore();
   final wallet = WalletProvider(walletRepo);
   final catalog = CatalogProvider(catalogRepo)..init();
   final advisor = AdvisorProvider(AdvisorRepositoryImpl(apiClient: api));
   final calculator = CalculatorProvider();
+  final content = ContentRepository(api);
+  final home = HomeProvider(content);
+  final shortlist = ShortlistProvider(content);
+  final navigation = NavigationProvider();
 
   api.onUnauthorized = auth.handleSessionExpired;
 
@@ -49,6 +76,11 @@ Future<void> main() async {
     wallet
       ..clipboardDuration = Duration(seconds: settings.settings.clipboardClearSeconds)
       ..revealDuration = Duration(seconds: settings.settings.revealSeconds);
+    unawaited(AnalyticsService.applyCollection(settings.settings.diagnosticsEnabled));
+  }
+
+  void onNavigationChanged() {
+    unawaited(AnalyticsService.screen(_screenName(navigation.currentIndex)));
   }
 
   var lastStatus = AuthStatus.unknown;
@@ -56,51 +88,93 @@ Future<void> main() async {
     final status = auth.status;
     if (status == lastStatus) return;
     lastStatus = status;
+    final authState = switch (status) {
+      AuthStatus.signedIn => 'signed_in',
+      AuthStatus.guest => 'guest',
+      AuthStatus.signedOut => 'signed_out',
+      AuthStatus.unknown => 'unknown',
+    };
+    final userId = auth.isSignedIn && (auth.user?.id ?? 0) != 0 ? '${auth.user!.id}' : null;
+    unawaited(AnalyticsService.setAuth(userId: userId, state: authState));
+
     if (auth.isAuthenticated) {
       wallet.loadCards();
       advisor.init();
+      home
+        ..load()
+        ..loadBanners('catalog_top');
+      if (auth.isSignedIn) {
+        shortlist.refresh();
+        home.loadBanners('wallet', audience: 'member', force: true);
+      } else {
+        shortlist.clear();
+        home.clearMemberContent();
+      }
     } else {
       wallet.reset();
+      shortlist.clear();
+      home.clearMemberContent();
     }
   }
 
+  var walletSignature = '';
   void onWalletChanged() {
     advisor.updateWallet(wallet.cards, isGuest: auth.isGuest);
     calculator.updateWallet(wallet.cards);
+    final signature = wallet.cards.map((c) => '${c.id}:${c.billingCycleDay}:${c.dueDay}').join(',');
+    if (signature != walletSignature) {
+      walletSignature = signature;
+      if (auth.isSignedIn && wallet.cards.isNotEmpty) home.loadWalletInsights();
+    }
   }
 
   settings.addListener(applySettings);
   auth.addListener(onAuthChanged);
   wallet.addListener(onWalletChanged);
+  navigation.addListener(onNavigationChanged);
   applySettings();
   onAuthChanged();
+  onNavigationChanged();
 
   runApp(
     MultiProvider(
       providers: [
         Provider<SecureVaultService>.value(value: vault),
         Provider<CatalogRepository>.value(value: catalogRepo),
+        Provider<ContentRepository>.value(value: content),
         ChangeNotifierProvider.value(value: settings),
+        ChangeNotifierProvider.value(value: remoteConfig),
         ChangeNotifierProvider.value(value: auth),
-        ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ChangeNotifierProvider.value(value: navigation),
         ChangeNotifierProvider.value(value: wallet),
         ChangeNotifierProvider.value(value: catalog),
         ChangeNotifierProvider.value(value: advisor),
         ChangeNotifierProvider.value(value: calculator),
+        ChangeNotifierProvider.value(value: home),
+        ChangeNotifierProvider.value(value: shortlist),
       ],
-      child: const CreditVanceApp(),
+      child: const CredvertApp(),
     ),
   );
 }
 
-class CreditVanceApp extends StatelessWidget {
-  const CreditVanceApp({super.key});
+String _screenName(int index) => switch (index) {
+      NavigationProvider.home => 'home',
+      NavigationProvider.wallet => 'wallet',
+      NavigationProvider.explore => 'explore',
+      NavigationProvider.rewards => 'rewards',
+      _ => 'account',
+    };
+
+class CredvertApp extends StatelessWidget {
+  const CredvertApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     final themeMode = context.select<SettingsProvider, ThemeMode>((s) => s.themeMode);
     return ToastificationWrapper(
       child: MaterialApp(
+        navigatorKey: rootNavigatorKey,
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
@@ -111,7 +185,7 @@ class CreditVanceApp extends StatelessWidget {
           value: AppTheme.overlayFor(Theme.of(context).brightness),
           child: MediaQuery.withClampedTextScaling(maxScaleFactor: 1.3, child: child!),
         ),
-        home: const _AuthGate(),
+        home: const AppStatusGate(child: _AuthGate()),
       ),
     );
   }

@@ -9,7 +9,7 @@ import 'package:flutter/services.dart';
 class SecurePlatform {
   const SecurePlatform._();
 
-  static const MethodChannel _channel = MethodChannel('creditvance/secure');
+  static const MethodChannel _channel = MethodChannel('credvert/secure');
 
   static bool get _isMobile =>
       !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
