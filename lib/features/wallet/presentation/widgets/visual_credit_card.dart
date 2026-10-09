@@ -1,468 +1,406 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/card_formatter.dart';
-import '../../../../core/utils/haptics_helper.dart';
 import '../../../../core/widgets/network_logo_widget.dart';
-import '../../domain/entities/user_card.dart';
 
-/// 3D Realistic Luxury Credit Card component.
-/// Featuring card image rendering, brushed obsidian finish, gold trim, EMV chip, and biometric unmasking.
-class VisualCreditCard extends StatelessWidget {
-  final UserCard card;
-  final bool isUnmasked;
-  final String? unmaskedPan;
-  final String? unmaskedCvv;
-  final String? unmaskedExpiry;
-  final VoidCallback? onCopyPressed;
-  final VoidCallback? onToggleReveal;
-  final double scale;
+/// Data needed to paint a card face.
+class CardFaceData {
+  final String bankName;
+  final String cardName;
+  final String network;
+  final String last4;
+  final String? nickname;
+  final String? fullNumber;
+  final String? expiry;
+  final String? cvv;
+
+  const CardFaceData({
+    required this.bankName,
+    required this.cardName,
+    required this.network,
+    required this.last4,
+    this.nickname,
+    this.fullNumber,
+    this.expiry,
+    this.cvv,
+  });
+
+  bool get isRevealed => fullNumber != null;
+}
+
+/// Flippable metal card. Front shows the PAN, back shows the CVV.
+class VisualCreditCard extends StatefulWidget {
+  final CardFaceData data;
+  final bool showBack;
+  final Widget? overlay;
+  final double elevation;
 
   const VisualCreditCard({
     super.key,
-    required this.card,
-    this.isUnmasked = false,
-    this.unmaskedPan,
-    this.unmaskedCvv,
-    this.unmaskedExpiry,
-    this.onCopyPressed,
-    this.onToggleReveal,
-    this.scale = 1.0,
+    required this.data,
+    this.showBack = false,
+    this.overlay,
+    this.elevation = 1,
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Choose fallback gradient and accent based on bank / tier
-    LinearGradient cardGradient = AppColors.obsidianGradient;
-    Color accentColor = AppColors.gold;
+  State<VisualCreditCard> createState() => _VisualCreditCardState();
+}
 
-    final lowerName = card.cardName.toLowerCase();
-    if (lowerName.contains('cashback')) {
-      cardGradient = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFF0F2B22), Color(0xFF081813), Color(0xFF040A08)],
-      );
-      accentColor = AppColors.emerald;
-    } else if (lowerName.contains('atlas') || lowerName.contains('travel') || lowerName.contains('sapphire')) {
-      cardGradient = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFF132247), Color(0xFF0C1429), Color(0xFF060A14)],
-      );
-      accentColor = AppColors.sapphireLight;
-    } else if (lowerName.contains('infinia') || lowerName.contains('magnus') || lowerName.contains('centurion')) {
-      cardGradient = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFF261D10), Color(0xFF151108), Color(0xFF080603)],
-      );
-      accentColor = AppColors.gold;
+/// Owns only the flip animation controller.
+class _VisualCreditCardState extends State<VisualCreditCard> with SingleTickerProviderStateMixin {
+  late final AnimationController _flip = AnimationController(
+    vsync: this,
+    duration: AppDimensions.slowAnim,
+    value: widget.showBack ? 1 : 0,
+  );
+
+  @override
+  void didUpdateWidget(covariant VisualCreditCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.showBack != widget.showBack) {
+      widget.showBack ? _flip.forward() : _flip.reverse();
     }
+  }
 
-    final displayPan = isUnmasked && unmaskedPan != null && unmaskedPan!.isNotEmpty
-        ? CardFormatter.formatFullPan(unmaskedPan!)
-        : CardFormatter.maskCardNumber(card.last4Digits);
+  @override
+  void dispose() {
+    _flip.dispose();
+    super.dispose();
+  }
 
-    final displayExp = isUnmasked && unmaskedExpiry != null && unmaskedExpiry!.isNotEmpty
-        ? unmaskedExpiry!
-        : '••/••';
-
-    final displayCvv = isUnmasked && unmaskedCvv != null && unmaskedCvv!.isNotEmpty
-        ? unmaskedCvv!
-        : '•••';
-
-    final hasImage = card.imageUrl != null && card.imageUrl!.isNotEmpty;
-
-    return Transform.scale(
-      scale: scale,
-      child: AspectRatio(
-        aspectRatio: AppDimensions.cardAspectRatio,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: cardGradient,
-            borderRadius: AppDimensions.roundedLg,
-            border: Border.all(
-              color: isUnmasked ? accentColor.withOpacity(0.8) : AppColors.borderSubtle,
-              width: isUnmasked ? 1.5 : 1.0,
+  @override
+  Widget build(BuildContext context) {
+    final skin = CardSkin.resolve(cardName: widget.data.cardName, bankName: widget.data.bankName);
+    return AspectRatio(
+      aspectRatio: AppDimensions.cardAspectRatio,
+      child: AnimatedBuilder(
+        animation: _flip,
+        builder: (context, _) {
+          final t = Curves.easeInOutCubic.transform(_flip.value);
+          final angle = t * math.pi;
+          final isBack = angle > math.pi / 2;
+          final face = isBack
+              ? Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.rotationY(math.pi),
+                  child: _CardBack(data: widget.data, skin: skin),
+                )
+              : _CardFront(data: widget.data, skin: skin);
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.0012)
+              ..rotateY(angle),
+            child: _CardShell(
+              skin: skin,
+              elevation: widget.elevation,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  face,
+                  if (widget.overlay != null && !isBack) widget.overlay!,
+                ],
+              ),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: isUnmasked ? accentColor.withOpacity(0.25) : Colors.black.withOpacity(0.45),
-                blurRadius: 24,
-                spreadRadius: 2,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // 1. Background Card Art (if available)
-              if (hasImage)
-                ClipRRect(
-                  borderRadius: AppDimensions.roundedLg,
-                  child: CachedNetworkImage(
-                    imageUrl: card.imageUrl!,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    placeholder: (context, url) => Container(
-                      decoration: BoxDecoration(
-                        gradient: cardGradient,
-                        borderRadius: AppDimensions.roundedLg,
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      decoration: BoxDecoration(
-                        gradient: cardGradient,
-                        borderRadius: AppDimensions.roundedLg,
-                      ),
-                    ),
-                  ),
-                ),
-
-              // 2. High-contrast luxury scrim overlay
-              ClipRRect(
-                borderRadius: AppDimensions.roundedLg,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: hasImage
-                          ? [
-                              Colors.black.withOpacity(0.45),
-                              Colors.black.withOpacity(0.75),
-                            ]
-                          : [
-                              Colors.white.withOpacity(0.04),
-                              Colors.transparent,
-                            ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // 3. Metallic specular sheen line
-              if (!hasImage)
-                Positioned(
-                  top: -50,
-                  right: -30,
-                  child: Transform.rotate(
-                    angle: -0.4,
-                    child: Container(
-                      width: 140,
-                      height: 280,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.white.withOpacity(0.07),
-                            Colors.white.withOpacity(0.0),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-              // 4. Card Content
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Top Row: Bank Logo/Name & Reveal Button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              if (card.bankLogoUrl != null && card.bankLogoUrl!.isNotEmpty) ...[
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    width: 26,
-                                    height: 26,
-                                    color: Colors.black26,
-                                    padding: const EdgeInsets.all(2),
-                                    child: CachedNetworkImage(
-                                      imageUrl: card.bankLogoUrl!,
-                                      fit: BoxFit.contain,
-                                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      card.bankName.toUpperCase(),
-                                      style: AppTypography.labelSmall.copyWith(
-                                        color: accentColor,
-                                        letterSpacing: 1.5,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 10,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Text(
-                                      card.nickname,
-                                      style: AppTypography.titleSmall.copyWith(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              AppIcons.contactless,
-                              size: 22,
-                              color: AppColors.textSecondary,
-                            ),
-                            if (card.hasVaultDetails) ...[
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () {
-                                  HapticsHelper.light();
-                                  onToggleReveal?.call();
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: isUnmasked
-                                        ? accentColor.withOpacity(0.2)
-                                        : AppColors.surfaceElevated.withOpacity(0.8),
-                                    borderRadius: AppDimensions.roundedFull,
-                                    border: Border.all(
-                                      color: isUnmasked ? accentColor : AppColors.borderSubtle,
-                                      width: 1.0,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        isUnmasked ? AppIcons.eyeSlash : AppIcons.eye,
-                                        size: 12,
-                                        color: isUnmasked ? accentColor : AppColors.textSecondary,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        isUnmasked ? 'Hide' : 'Reveal',
-                                        style: AppTypography.labelSmall.copyWith(
-                                          color: isUnmasked ? accentColor : AppColors.textSecondary,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    // Middle Row: EMV Chip & Formatted PAN
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // EMV Metallic Chip
-                        Container(
-                          width: 36,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFE5C07B), Color(0xFF997A3E)],
-                            ),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Center(
-                            child: Container(
-                              width: 30,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.black26, width: 0.8),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Number with copy support
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: onCopyPressed,
-                            child: Text(
-                              displayPan,
-                              style: AppTypography.cardNumber.copyWith(
-                                fontSize: isUnmasked ? 14 : 16,
-                                color: AppColors.textPrimary,
-                                letterSpacing: 1.8,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Bottom Row: Holder Name, Expiry, CVV & Network
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        // Cardholder Column
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'CARDHOLDER',
-                                style: AppTypography.labelSmall.copyWith(
-                                  fontSize: 8.5,
-                                  color: AppColors.textTertiary,
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                              Text(
-                                card.cardName,
-                                style: AppTypography.bodySmall.copyWith(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 11.5,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Expiry & CVV
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'EXPIRES',
-                                  style: AppTypography.labelSmall.copyWith(
-                                    fontSize: 8.5,
-                                    color: AppColors.textTertiary,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                                Text(
-                                  displayExp,
-                                  style: AppTypography.bodySmall.copyWith(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 11.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'CVV',
-                                  style: AppTypography.labelSmall.copyWith(
-                                    fontSize: 8.5,
-                                    color: AppColors.textTertiary,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                                Text(
-                                  displayCvv,
-                                  style: AppTypography.bodySmall.copyWith(
-                                    color: isUnmasked ? accentColor : AppColors.textPrimary,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 11.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Authentic Payment Network Provider Logo & Label
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.35),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: AppColors.borderSubtle, width: 0.5),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                NetworkLogoWidget(
-                                  network: card.network,
-                                  height: 15,
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    card.network,
-                                    style: AppTypography.labelSmall.copyWith(
-                                      color: AppColors.textPrimary,
-                                      fontWeight: FontWeight.w800,
-                                      fontStyle: FontStyle.italic,
-                                      fontSize: 9.0,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
+}
+
+class _CardShell extends StatelessWidget {
+  final CardSkin skin;
+  final Widget child;
+  final double elevation;
+
+  const _CardShell({required this.skin, required this.child, required this.elevation});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, box) {
+      final radius = BorderRadius.circular(box.maxWidth * 0.05);
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: skin.gradient,
+          boxShadow: elevation > 0
+              ? [
+                  BoxShadow(
+                    color: skin.colors.last.withValues(alpha: 0.55 * elevation),
+                    blurRadius: 28,
+                    offset: const Offset(0, 14),
+                    spreadRadius: -10,
+                  ),
+                ]
+              : null,
+        ),
+        foregroundDecoration: BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Soft specular sheen.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(-0.8, -1.1),
+                  radius: 1.4,
+                  colors: [Colors.white.withValues(alpha: 0.13), Colors.transparent],
+                ),
+              ),
+            ),
+            Positioned(
+              right: -box.maxWidth * 0.25,
+              bottom: -box.maxWidth * 0.35,
+              child: Container(
+                width: box.maxWidth * 0.8,
+                height: box.maxWidth * 0.8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: skin.accent.withValues(alpha: 0.08), width: box.maxWidth * 0.06),
+                ),
+              ),
+            ),
+            child,
+          ],
+        ),
+      );
+    });
+  }
+}
+
+class _CardFront extends StatelessWidget {
+  final CardFaceData data;
+  final CardSkin skin;
+
+  const _CardFront({required this.data, required this.skin});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, box) {
+      final w = box.maxWidth;
+      final pad = w * 0.065;
+      final number = data.fullNumber != null
+          ? CardFormatter.formatFullPan(data.fullNumber!)
+          : '••••  ••••  ••••  ${data.last4}';
+
+      return Padding(
+        padding: EdgeInsets.all(pad),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    data.bankName.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.cardCaption(color: AppColors.cardTextMuted)
+                        .copyWith(fontSize: w * 0.032, letterSpacing: w * 0.004),
+                  ),
+                ),
+                Icon(AppIcons.contactless, color: AppColors.cardTextMuted, size: w * 0.06),
+              ],
+            ),
+            SizedBox(height: w * 0.012),
+            Text(
+              data.cardName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.cardCaption(color: skin.accent)
+                  .copyWith(fontSize: w * 0.03, letterSpacing: 0.3, fontWeight: FontWeight.w600),
+            ),
+            const Spacer(),
+            _Chip(width: w * 0.12),
+            const Spacer(),
+            AnimatedSwitcher(
+              duration: AppDimensions.mediumAnim,
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: SlideTransition(
+                  position: Tween(begin: const Offset(0, 0.25), end: Offset.zero).animate(anim),
+                  child: child,
+                ),
+              ),
+              child: FittedBox(
+                key: ValueKey(number),
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(number, style: AppTypography.cardNumber(w * 0.058, color: AppColors.cardText)),
+              ),
+            ),
+            SizedBox(height: w * 0.035),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('CARD', style: AppTypography.cardCaption(color: AppColors.cardTextFaint).copyWith(fontSize: w * 0.022)),
+                      const SizedBox(height: 2),
+                      Text(
+                        (data.nickname?.isNotEmpty ?? false ? data.nickname! : data.cardName).toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.cardCaption(color: AppColors.cardText)
+                            .copyWith(fontSize: w * 0.032, letterSpacing: 0.8),
+                      ),
+                    ],
+                  ),
+                ),
+                if (data.expiry != null) ...[
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('VALID THRU', style: AppTypography.cardCaption(color: AppColors.cardTextFaint).copyWith(fontSize: w * 0.022)),
+                      const SizedBox(height: 2),
+                      Text(data.expiry!, style: AppTypography.cardNumber(w * 0.036, color: AppColors.cardText)),
+                    ],
+                  ),
+                  SizedBox(width: w * 0.05),
+                ],
+                NetworkLogoWidget(network: data.network, height: w * 0.075),
+              ],
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+class _CardBack extends StatelessWidget {
+  final CardFaceData data;
+  final CardSkin skin;
+
+  const _CardBack({required this.data, required this.skin});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, box) {
+      final w = box.maxWidth;
+      final pad = w * 0.065;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(height: w * 0.08),
+          Container(height: w * 0.13, color: AppColors.cardStripe),
+          SizedBox(height: w * 0.06),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: pad),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: w * 0.1,
+                    decoration: BoxDecoration(
+                      color: AppColors.cardSignature,
+                      borderRadius: BorderRadius.circular(w * 0.01),
+                    ),
+                  ),
+                ),
+                Container(
+                  height: w * 0.1,
+                  padding: EdgeInsets.symmetric(horizontal: w * 0.03),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(w * 0.01),
+                  ),
+                  child: Text(
+                    data.cvv ?? '•••',
+                    style: AppTypography.cardNumber(w * 0.045, color: AppColors.cardStripe),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: w * 0.02),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: pad),
+            child: Text(
+              'CVV',
+              textAlign: TextAlign.right,
+              style: AppTypography.cardCaption(color: AppColors.cardTextFaint).copyWith(fontSize: w * 0.024),
+            ),
+          ),
+          const Spacer(),
+          Padding(
+            padding: EdgeInsets.fromLTRB(pad, 0, pad, pad),
+            child: Row(
+              children: [
+                Icon(AppIcons.shieldFill, size: w * 0.04, color: skin.accent),
+                SizedBox(width: w * 0.015),
+                Expanded(
+                  child: Text(
+                    'Secured by device hardware',
+                    style: AppTypography.cardCaption(color: AppColors.cardTextMuted).copyWith(fontSize: w * 0.026),
+                  ),
+                ),
+                NetworkLogoWidget(network: data.network, height: w * 0.06),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final double width;
+  const _Chip({required this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: width * 0.76,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(width * 0.16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.cardChipLight, AppColors.cardChipDark, AppColors.cardChipLight],
+        ),
+      ),
+      child: CustomPaint(painter: _ChipLinesPainter()),
+    );
+  }
+}
+
+class _ChipLinesPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = AppColors.black.withValues(alpha: 0.18)
+      ..strokeWidth = 0.8
+      ..style = PaintingStyle.stroke;
+    final w = size.width, h = size.height;
+    canvas.drawLine(Offset(w * 0.33, 0), Offset(w * 0.33, h), p);
+    canvas.drawLine(Offset(w * 0.67, 0), Offset(w * 0.67, h), p);
+    canvas.drawLine(Offset(0, h * 0.5), Offset(w * 0.33, h * 0.5), p);
+    canvas.drawLine(Offset(w * 0.67, h * 0.5), Offset(w, h * 0.5), p);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.33, h * 0.25, w * 0.34, h * 0.5), Radius.circular(w * 0.08)),
+      p,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

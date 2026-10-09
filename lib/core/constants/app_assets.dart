@@ -1,4 +1,4 @@
-/// Centralized Asset paths for CardSage.
+/// Centralized Asset paths for Credvert.
 class AppAssets {
   const AppAssets._();
 

@@ -1,17 +1,30 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Local Cache Service using SharedPreferences for sub-second offline loading.
+/// Non-sensitive local persistence (SharedPreferences).
+///
+/// Never store PAN, CVV or expiry here — those belong in [SecureVaultService].
 class LocalCacheService {
   final SharedPreferences _prefs;
 
   LocalCacheService(this._prefs);
 
   static const String _keyAuthToken = 'cs_auth_token';
+  static const String _keyRefreshToken = 'cs_refresh_token';
+  static const String _keyGuest = 'cs_is_guest';
   static const String _keyUserProfile = 'cs_user_profile';
-  static const String _keyCatalogCache = 'cs_catalog_cache_v2';
-  static const String _keyBanksCache = 'cs_banks_cache';
-  static const String _keyCategoriesCache = 'cs_categories_cache';
-  static const String _keyLastCacheTime = 'cs_last_cache_time';
+  static const String _keyCatalogCache = 'cs_catalog_cache_v3';
+  static const String _keyCatalogCacheTime = 'cs_catalog_cache_time_v3';
+  static const String _keyBanksCache = 'cs_banks_cache_v2';
+  static const String _keyCategoriesCache = 'cs_categories_cache_v2';
+  static const String _keyWalletCards = 'cs_wallet_cards_v1';
+  static const String _keyWalletOrder = 'cs_wallet_order_v1';
+  static const String _keySettings = 'cs_settings_v1';
+  static const String _keyOnboarded = 'cs_onboarded_v1';
+  static const String _keyDismissedAnnouncement = 'cs_rc_announcement_dismissed';
+  static const String _keyDismissedUpdate = 'cs_rc_update_dismissed';
+  static const String _keySeenWhatsNew = 'cs_rc_whats_new_seen';
+
+  static const Duration catalogTtl = Duration(hours: 6);
 
   // SMS expense tracking (structured, parsed fields only — never raw SMS bodies)
   static const String _keyExpenseTransactions = 'cs_expense_txns_v1';
@@ -24,79 +37,112 @@ class LocalCacheService {
   static const String _keyExpensePendingErase = 'cs_expense_pending_erase';
   static const String _keyExpensePermissionAsked = 'cs_expense_permission_asked';
 
-  // Auth Token
+  // Session
   String? getAuthToken() => _prefs.getString(_keyAuthToken);
-
   Future<bool> setAuthToken(String token) => _prefs.setString(_keyAuthToken, token);
-
   Future<bool> clearAuthToken() => _prefs.remove(_keyAuthToken);
 
-  // User Profile
+  String? getRefreshToken() => _prefs.getString(_keyRefreshToken);
+  Future<bool> setRefreshToken(String token) => _prefs.setString(_keyRefreshToken, token);
+  Future<bool> clearRefreshToken() => _prefs.remove(_keyRefreshToken);
+
+  bool get isGuest => _prefs.getBool(_keyGuest) ?? false;
+  Future<bool> setGuest(bool value) => _prefs.setBool(_keyGuest, value);
+
   String? getUserProfile() => _prefs.getString(_keyUserProfile);
-
   Future<bool> setUserProfile(String jsonStr) => _prefs.setString(_keyUserProfile, jsonStr);
+  Future<bool> clearUserProfile() => _prefs.remove(_keyUserProfile);
 
-  // Catalog Cache
-  String? getCatalogCache() => _prefs.getString(_keyCatalogCache);
+  bool get hasOnboarded => _prefs.getBool(_keyOnboarded) ?? false;
+  Future<bool> setOnboarded() => _prefs.setBool(_keyOnboarded, true);
 
-  Future<bool> setCatalogCache(String jsonStr) {
-    _prefs.setInt(_keyLastCacheTime, DateTime.now().millisecondsSinceEpoch);
+  // Catalog (first page for default filters only)
+  String? getCatalogCache({bool ignoreTtl = false}) {
+    final savedAt = _prefs.getInt(_keyCatalogCacheTime);
+    if (savedAt == null) return null;
+    final age = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(savedAt));
+    if (!ignoreTtl && age > catalogTtl) return null;
+    return _prefs.getString(_keyCatalogCache);
+  }
+
+  Future<bool> setCatalogCache(String jsonStr) async {
+    await _prefs.setInt(_keyCatalogCacheTime, DateTime.now().millisecondsSinceEpoch);
     return _prefs.setString(_keyCatalogCache, jsonStr);
   }
 
-  // Banks Cache
   String? getBanksCache() => _prefs.getString(_keyBanksCache);
-
   Future<bool> setBanksCache(String jsonStr) => _prefs.setString(_keyBanksCache, jsonStr);
 
-  // Categories Cache
   String? getCategoriesCache() => _prefs.getString(_keyCategoriesCache);
-
   Future<bool> setCategoriesCache(String jsonStr) => _prefs.setString(_keyCategoriesCache, jsonStr);
+
+  Future<void> clearCatalogCaches() async {
+    await _prefs.remove(_keyCatalogCache);
+    await _prefs.remove(_keyCatalogCacheTime);
+    await _prefs.remove(_keyBanksCache);
+    await _prefs.remove(_keyCategoriesCache);
+  }
+
+  // Wallet metadata (nickname, last 4, bank, card model — no secrets)
+  String? getWalletCards() => _prefs.getString(_keyWalletCards);
+  Future<bool> setWalletCards(String jsonStr) => _prefs.setString(_keyWalletCards, jsonStr);
+
+  List<int> getWalletOrder() =>
+      (_prefs.getStringList(_keyWalletOrder) ?? const []).map(int.tryParse).whereType<int>().toList();
+  Future<bool> setWalletOrder(List<int> ids) =>
+      _prefs.setStringList(_keyWalletOrder, ids.map((e) => e.toString()).toList());
+
+  // Remote Config dismissals (not secrets)
+  String? get dismissedAnnouncementId => _prefs.getString(_keyDismissedAnnouncement);
+  Future<bool> setDismissedAnnouncement(String id) => _prefs.setString(_keyDismissedAnnouncement, id);
+
+  String? get dismissedUpdateKey => _prefs.getString(_keyDismissedUpdate);
+  Future<bool> setDismissedUpdate(String key) => _prefs.setString(_keyDismissedUpdate, key);
+
+  String? get seenWhatsNewVersion => _prefs.getString(_keySeenWhatsNew);
+  Future<bool> setSeenWhatsNew(String version) => _prefs.setString(_keySeenWhatsNew, version);
+
+  // App settings
+  String? getSettings() => _prefs.getString(_keySettings);
+  Future<bool> setSettings(String jsonStr) => _prefs.setString(_keySettings, jsonStr);
+
+  /// Clears the signed-in session and wallet metadata but keeps app settings
+  /// (theme, security preferences) and the public catalog cache.
+  Future<void> clearSession() async {
+    await _prefs.remove(_keyAuthToken);
+    await _prefs.remove(_keyRefreshToken);
+    await _prefs.remove(_keyGuest);
+    await _prefs.remove(_keyUserProfile);
+    await _prefs.remove(_keyWalletCards);
+    await _prefs.remove(_keyWalletOrder);
+  }
 
   // Parsed card transactions (JSON array)
   String? getExpenseTransactions() => _prefs.getString(_keyExpenseTransactions);
-
   Future<bool> setExpenseTransactions(String jsonStr) => _prefs.setString(_keyExpenseTransactions, jsonStr);
 
-  // Parsed bill / statement notices (JSON array)
   String? getExpenseBills() => _prefs.getString(_keyExpenseBills);
-
   Future<bool> setExpenseBills(String jsonStr) => _prefs.setString(_keyExpenseBills, jsonStr);
 
-  // Offline sync queue of dedupe hashes awaiting backend acknowledgement
   List<String> getExpenseSyncQueue() => _prefs.getStringList(_keyExpenseSyncQueue) ?? const [];
-
   Future<bool> setExpenseSyncQueue(List<String> hashes) => _prefs.setStringList(_keyExpenseSyncQueue, hashes);
 
-  // Dedupe hashes the user marked as "not a transaction" so rescans skip them
   List<String> getExpenseIgnoredHashes() => _prefs.getStringList(_keyExpenseIgnored) ?? const [];
-
   Future<bool> setExpenseIgnoredHashes(List<String> hashes) => _prefs.setStringList(_keyExpenseIgnored, hashes);
 
-  // SMS tracking consent record (JSON object)
   String? getExpenseConsent() => _prefs.getString(_keyExpenseConsent);
-
   Future<bool> setExpenseConsent(String jsonStr) => _prefs.setString(_keyExpenseConsent, jsonStr);
 
-  // Incremental inbox scan cursor (epoch millis of newest processed SMS)
   int? getExpenseScanCursor() => _prefs.getInt(_keyExpenseScanCursor);
-
   Future<bool> setExpenseScanCursor(int epochMillis) => _prefs.setInt(_keyExpenseScanCursor, epochMillis);
 
-  // Last successful backend sync (epoch millis)
   int? getExpenseLastSynced() => _prefs.getInt(_keyExpenseLastSynced);
-
   Future<bool> setExpenseLastSynced(int epochMillis) => _prefs.setInt(_keyExpenseLastSynced, epochMillis);
 
-  // Remote erasure requested while offline; retried on next sync
   bool getExpensePendingErase() => _prefs.getBool(_keyExpensePendingErase) ?? false;
-
   Future<bool> setExpensePendingErase(bool pending) => _prefs.setBool(_keyExpensePendingErase, pending);
 
-  // Whether the runtime SMS permission dialog has been shown at least once
   bool getExpensePermissionAsked() => _prefs.getBool(_keyExpensePermissionAsked) ?? false;
-
   Future<bool> setExpensePermissionAsked(bool asked) => _prefs.setBool(_keyExpensePermissionAsked, asked);
 
   /// Wipes every locally stored SMS-derived record, cursor and queue.
@@ -109,10 +155,5 @@ class LocalCacheService {
     await _prefs.remove(_keyExpenseConsent);
     await _prefs.remove(_keyExpenseScanCursor);
     await _prefs.remove(_keyExpenseLastSynced);
-  }
-
-  // Clear all cached state
-  Future<void> clearAll() async {
-    await _prefs.clear();
   }
 }

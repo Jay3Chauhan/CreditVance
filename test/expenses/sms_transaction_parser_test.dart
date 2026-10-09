@@ -1,11 +1,11 @@
-import 'package:cardsage/features/expenses/data/parsers/bank_sender_registry.dart';
-import 'package:cardsage/features/expenses/data/parsers/merchant_categorizer.dart';
-import 'package:cardsage/features/expenses/data/parsers/sms_transaction_parser.dart';
-import 'package:cardsage/features/expenses/domain/entities/bill_notice.dart';
-import 'package:cardsage/features/expenses/domain/entities/card_transaction.dart';
-import 'package:cardsage/features/expenses/domain/entities/raw_sms.dart';
-import 'package:cardsage/features/expenses/domain/entities/sms_parse_result.dart';
-import 'package:cardsage/features/expenses/domain/entities/spend_category.dart';
+import 'package:credvert/features/expenses/data/parsers/bank_sender_registry.dart';
+import 'package:credvert/features/expenses/data/parsers/merchant_categorizer.dart';
+import 'package:credvert/features/expenses/data/parsers/sms_transaction_parser.dart';
+import 'package:credvert/features/expenses/domain/entities/bill_notice.dart';
+import 'package:credvert/features/expenses/domain/entities/card_transaction.dart';
+import 'package:credvert/features/expenses/domain/entities/raw_sms.dart';
+import 'package:credvert/features/expenses/domain/entities/sms_parse_result.dart';
+import 'package:credvert/features/expenses/domain/entities/spend_category.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Realistic (anonymised) Indian bank credit card alert samples.

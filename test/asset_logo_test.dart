@@ -1,5 +1,5 @@
-import 'package:cardsage/core/constants/app_assets.dart';
-import 'package:cardsage/core/widgets/network_logo_widget.dart';
+import 'package:credvert/core/constants/app_assets.dart';
+import 'package:credvert/core/widgets/network_logo_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,33 +21,17 @@ void main() {
 
     testWidgets('NetworkLogoWidget renders logo for known network', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: NetworkLogoWidget(
-              network: 'Visa Infinite',
-              isLuxuryPill: true,
-            ),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: NetworkLogoWidget(network: 'Visa Infinite'))),
       );
-
       expect(find.byType(Image), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('NetworkLogoWidget gracefully falls back to text for unknown network', (tester) async {
+    testWidgets('NetworkLogoWidget falls back to text for unknown network', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: NetworkLogoWidget(
-              network: 'Custom Bank Rail',
-              isLuxuryPill: false,
-            ),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: NetworkLogoWidget(network: 'Custom Bank Rail'))),
       );
-
-      expect(find.text('CUSTOM BANK RAIL'), findsOneWidget);
+      expect(find.text('CUSTOM'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

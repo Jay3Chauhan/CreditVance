@@ -30,16 +30,19 @@ class CurrencyFormatter {
     return NumberFormat.simpleCurrency(name: currencyCode, decimalDigits: showDecimals ? 2 : 0).format(amount);
   }
 
-  /// Compact Indian notation for chart labels (₹950, ₹12.5K, ₹3.2L, ₹1.1Cr).
-  static String formatCompact(num amount) {
-    final abs = amount.abs();
+  /// Indian short form: ₹950, ₹12.5K, ₹3.2L, ₹1.1Cr.
+  static String compact(num amount) {
+    final a = amount.abs();
     final sign = amount < 0 ? '-' : '';
-    String trim(double v) => v >= 100 ? v.toStringAsFixed(0) : v.toStringAsFixed(1).replaceAll('.0', '');
-    if (abs >= 10000000) return '$sign₹${trim(abs / 10000000)}Cr';
-    if (abs >= 100000) return '$sign₹${trim(abs / 100000)}L';
-    if (abs >= 1000) return '$sign₹${trim(abs / 1000)}K';
-    return '$sign₹${abs.toStringAsFixed(0)}';
+    String trim(double v) => v >= 100 ? v.toStringAsFixed(0) : v.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+    if (a >= 1e7) return '$sign₹${trim(a / 1e7)}Cr';
+    if (a >= 1e5) return '$sign₹${trim(a / 1e5)}L';
+    if (a >= 1e3) return '$sign₹${trim(a / 1e3)}K';
+    return '$sign₹${a.toStringAsFixed(0)}';
   }
+
+  /// Compact Indian notation for chart labels. Same scale as [compact].
+  static String formatCompact(num amount) => compact(amount);
 
   /// Formats percentage rate (e.g. 5.0% or 3.33%)
   static String formatPercentage(double percent) {

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:cardsage/features/catalog/data/models/catalog_card_model.dart';
+import 'package:credvert/features/catalog/data/models/catalog_card_model.dart';
 
 void main() {
   group('CatalogCardModel JSON Parsing Tests', () {
@@ -32,7 +32,7 @@ void main() {
       expect(card.baseReturnRate, 5.0);
       expect(card.isPopular, true);
       expect(card.keyPerks.length, greaterThanOrEqualTo(2));
-      expect(card.tabs.containsKey('lounge-access'), isTrue);
+      expect(card.loungeTypes, contains('INTERNATIONAL_LOUNGE'));
     });
 
     test('Correctly falls back to display_name or Credit Card when title is empty', () {

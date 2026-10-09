@@ -1,15 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:cardsage/core/utils/currency_formatter.dart';
-import 'package:cardsage/core/utils/card_formatter.dart';
-import 'package:cardsage/core/data/mock_seed_data.dart';
+import 'package:credvert/core/utils/currency_formatter.dart';
+import 'package:credvert/core/utils/card_formatter.dart';
+import 'package:credvert/core/data/mock_seed_data.dart';
 
 void main() {
-  group('CardSage Core Utilities Smoke Tests', () {
+  group('Credvert Core Utilities Smoke Tests', () {
     test('CurrencyFormatter formats INR correctly', () {
       expect(CurrencyFormatter.format(5000), '₹5,000');
       expect(CurrencyFormatter.format(150000), '₹1,50,000');
       expect(CurrencyFormatter.formatPercentage(5.0), '5%');
       expect(CurrencyFormatter.formatPercentage(3.3), '3.3%');
+      expect(CurrencyFormatter.compact(950), '₹950');
+      expect(CurrencyFormatter.compact(12500), '₹12.5K');
+      expect(CurrencyFormatter.compact(320000), '₹3.2L');
+      expect(CurrencyFormatter.compact(11000000), '₹1.1Cr');
     });
 
     test('CardFormatter masks and formats PAN correctly', () {

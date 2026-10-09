@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "755910372710",
+    "project_id": "credvance-cb042",
+    "storage_bucket": "credvance-cb042.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:755910372710:android:8ae40378b74ddd7b6deca7",
+        "android_client_info": {
+          "package_name": "com.jaychauhan.credvert"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABE-2c40gsDffNvrnPTOUi2NteCzhJNco"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

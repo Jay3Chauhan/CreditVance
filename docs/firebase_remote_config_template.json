@@ -1,0 +1,256 @@
+{
+  "conditions": [],
+  "parameterGroups": {
+    "Availability": {
+      "description": "Maintenance window. Leave maintenance_enabled false until you need to block the app.",
+      "parameters": {
+        "maintenance_enabled": {
+          "defaultValue": { "value": "false" },
+          "description": "Blocks the whole app with the maintenance screen while the window is open.",
+          "valueType": "BOOLEAN"
+        },
+        "maintenance_title": {
+          "defaultValue": { "value": "We'll be right back" },
+          "description": "Maintenance screen title. Max 80 characters.",
+          "valueType": "STRING"
+        },
+        "maintenance_message": {
+          "defaultValue": { "value": "Credvert is temporarily unavailable while we make improvements. Cards saved on this device stay here." },
+          "description": "Maintenance screen body. Max 600 characters.",
+          "valueType": "STRING"
+        },
+        "maintenance_starts_at": {
+          "defaultValue": { "value": "" },
+          "description": "Optional ISO-8601 UTC start, for example 2026-10-01T18:30:00Z. Empty means start now.",
+          "valueType": "STRING"
+        },
+        "maintenance_ends_at": {
+          "defaultValue": { "value": "" },
+          "description": "Optional ISO-8601 UTC end. Empty means stay on until you turn maintenance off. Must be after the start.",
+          "valueType": "STRING"
+        },
+        "maintenance_show_retry": {
+          "defaultValue": { "value": "true" },
+          "description": "Shows a Try again button that fetches Remote Config again.",
+          "valueType": "BOOLEAN"
+        }
+      }
+    },
+    "Versioning": {
+      "description": "Force update blocks the app. Soft update is a dismissible sheet. Set store links before enabling either one.",
+      "parameters": {
+        "force_update_enabled": {
+          "defaultValue": { "value": "false" },
+          "description": "When true, builds below the minimum version or build are blocked.",
+          "valueType": "BOOLEAN"
+        },
+        "min_supported_version": {
+          "defaultValue": { "value": "1.0.0" },
+          "description": "Oldest version name still allowed. Use major.minor.patch only, for example 1.2.0.",
+          "valueType": "STRING"
+        },
+        "min_supported_build": {
+          "defaultValue": { "value": "0" },
+          "description": "Oldest version code still allowed. 0 disables this check. The current app build is 1.",
+          "valueType": "NUMBER"
+        },
+        "soft_update_enabled": {
+          "defaultValue": { "value": "false" },
+          "description": "When true, older builds see a dismissible update sheet. Ignored when a force update applies.",
+          "valueType": "BOOLEAN"
+        },
+        "latest_version": {
+          "defaultValue": { "value": "1.0.0" },
+          "description": "Newest published version name, major.minor.patch.",
+          "valueType": "STRING"
+        },
+        "latest_build": {
+          "defaultValue": { "value": "0" },
+          "description": "Newest version code. 0 disables the build comparison for the soft prompt.",
+          "valueType": "NUMBER"
+        },
+        "update_title": {
+          "defaultValue": { "value": "A new version is ready" },
+          "description": "Soft update sheet title. Max 80 characters.",
+          "valueType": "STRING"
+        },
+        "update_message": {
+          "defaultValue": { "value": "Update Credvert for the latest fixes and improvements. You can keep using this version for now." },
+          "description": "Soft update sheet body. Max 600 characters.",
+          "valueType": "STRING"
+        },
+        "force_update_title": {
+          "defaultValue": { "value": "Update required" },
+          "description": "Blocking update screen title. Max 80 characters.",
+          "valueType": "STRING"
+        },
+        "force_update_message": {
+          "defaultValue": { "value": "This version of Credvert is no longer supported. Update to keep your wallet and recommendations working." },
+          "description": "Blocking update screen body. Max 600 characters.",
+          "valueType": "STRING"
+        },
+        "update_button_label": {
+          "defaultValue": { "value": "Update now" },
+          "description": "Store button label. Max 24 characters.",
+          "valueType": "STRING"
+        },
+        "android_store_url": {
+          "defaultValue": { "value": "https://play.google.com/store/apps/details?id=com.jaychauhan.credvert" },
+          "description": "https Play Store link. javascript: and other schemes are ignored.",
+          "valueType": "STRING"
+        },
+        "ios_store_url": {
+          "defaultValue": { "value": "" },
+          "description": "https App Store link, for example https://apps.apple.com/app/id1234567890. Required before a force update on iPhone.",
+          "valueType": "STRING"
+        }
+      }
+    },
+    "Announcement": {
+      "description": "One in-app announcement. Change announcement_id whenever the message changes so people who dismissed the old one see the new one.",
+      "parameters": {
+        "announcement_enabled": {
+          "defaultValue": { "value": "false" },
+          "description": "Shows the announcement while its window is open.",
+          "valueType": "BOOLEAN"
+        },
+        "announcement_id": {
+          "defaultValue": { "value": "" },
+          "description": "Required when enabled. 1-64 letters, numbers, dots, dashes, or underscores. Example: diwali-2026.",
+          "valueType": "STRING"
+        },
+        "announcement_title": {
+          "defaultValue": { "value": "" },
+          "description": "Max 80 characters. Required together with a message, or the announcement stays hidden.",
+          "valueType": "STRING"
+        },
+        "announcement_message": {
+          "defaultValue": { "value": "" },
+          "description": "Max 600 characters.",
+          "valueType": "STRING"
+        },
+        "announcement_severity": {
+          "defaultValue": { "value": "info" },
+          "description": "info, success, warning, or critical. critical plus dismissible false blocks the app.",
+          "valueType": "STRING"
+        },
+        "announcement_dismissible": {
+          "defaultValue": { "value": "true" },
+          "description": "False on a critical announcement blocks the app until you change the config.",
+          "valueType": "BOOLEAN"
+        },
+        "announcement_action_label": {
+          "defaultValue": { "value": "" },
+          "description": "Button label. Max 32 characters. Both label and URL are required or the button is hidden.",
+          "valueType": "STRING"
+        },
+        "announcement_action_url": {
+          "defaultValue": { "value": "" },
+          "description": "https link opened by the button.",
+          "valueType": "STRING"
+        },
+        "announcement_starts_at": {
+          "defaultValue": { "value": "" },
+          "description": "Optional ISO-8601 UTC start. Empty means start now.",
+          "valueType": "STRING"
+        },
+        "announcement_ends_at": {
+          "defaultValue": { "value": "" },
+          "description": "Optional ISO-8601 UTC end. Empty means no end. Must be after the start.",
+          "valueType": "STRING"
+        }
+      }
+    },
+    "Whats new": {
+      "description": "Shown once per whats_new_version, after any soft-update sheet is dismissed.",
+      "parameters": {
+        "whats_new_enabled": {
+          "defaultValue": { "value": "false" },
+          "valueType": "BOOLEAN"
+        },
+        "whats_new_version": {
+          "defaultValue": { "value": "" },
+          "description": "Id for this release note, for example 1.2.0. Changing it shows the sheet again.",
+          "valueType": "STRING"
+        },
+        "whats_new_title": {
+          "defaultValue": { "value": "What's new" },
+          "description": "Max 80 characters.",
+          "valueType": "STRING"
+        },
+        "whats_new_body": {
+          "defaultValue": { "value": "" },
+          "description": "One bullet per line. The app keeps the first 8 lines, 140 characters each.",
+          "valueType": "STRING"
+        }
+      }
+    },
+    "Features": {
+      "description": "Turn product areas off without shipping a new build. Defaults leave everything on.",
+      "parameters": {
+        "feature_guest_mode_enabled": {
+          "defaultValue": { "value": "true" },
+          "description": "Hides Continue without an account. People already in guest mode stay signed in on this device.",
+          "valueType": "BOOLEAN"
+        },
+        "feature_advisor_enabled": {
+          "defaultValue": { "value": "true" },
+          "description": "Home recommendations.",
+          "valueType": "BOOLEAN"
+        },
+        "feature_calculator_enabled": {
+          "defaultValue": { "value": "true" },
+          "description": "Rewards calculator tab.",
+          "valueType": "BOOLEAN"
+        },
+        "feature_compare_enabled": {
+          "defaultValue": { "value": "true" },
+          "description": "Card compare.",
+          "valueType": "BOOLEAN"
+        },
+        "feature_push_enabled": {
+          "defaultValue": { "value": "true" },
+          "description": "Shows the Notifications row in Account. Does not send a prompt on launch.",
+          "valueType": "BOOLEAN"
+        }
+      }
+    },
+    "Links": {
+      "description": "Used when the Credvert API does not return a legal URL, and for support from the maintenance and update screens.",
+      "parameters": {
+        "privacy_policy_url": {
+          "defaultValue": { "value": "" },
+          "description": "https URL.",
+          "valueType": "STRING"
+        },
+        "terms_url": {
+          "defaultValue": { "value": "" },
+          "description": "https URL.",
+          "valueType": "STRING"
+        },
+        "support_email": {
+          "defaultValue": { "value": "" },
+          "description": "Plain email address, for example hello@credvert.app. The app opens a mail draft.",
+          "valueType": "STRING"
+        },
+        "help_url": {
+          "defaultValue": { "value": "" },
+          "description": "https help center URL. Shows a Help center row when set.",
+          "valueType": "STRING"
+        },
+        "config_schema_version": {
+          "defaultValue": { "value": "1" },
+          "description": "Leave at 1. The app ignores unknown future keys and still applies every key it knows.",
+          "valueType": "NUMBER"
+        }
+      }
+    }
+  },
+  "parameters": {},
+  "version": {
+    "versionNumber": "1",
+    "updateOrigin": "CONSOLE",
+    "updateType": "INCREMENTAL",
+    "updateUser": { "email": "import" }
+  }
+}

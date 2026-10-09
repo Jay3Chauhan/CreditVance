@@ -1,20 +1,20 @@
 import '../../domain/entities/user.dart';
 
-/// DTO for User profile
+/// DTO for `/auth/me` and `/auth/register` responses.
 class UserModel extends User {
   const UserModel({
     required super.id,
     required super.email,
     required super.fullName,
-    super.isBiometricEnabled,
+    super.isActive,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'] as int? ?? 1,
-      email: json['email'] as String? ?? 'user@cardsage.app',
-      fullName: json['full_name'] as String? ?? 'Elite Cardholder',
-      isBiometricEnabled: json['is_biometric_enabled'] as bool? ?? true,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      email: json['email'] as String? ?? '',
+      fullName: json['full_name'] as String? ?? '',
+      isActive: json['is_active'] as bool? ?? true,
     );
   }
 
@@ -22,6 +22,6 @@ class UserModel extends User {
         'id': id,
         'email': email,
         'full_name': fullName,
-        'is_biometric_enabled': isBiometricEnabled,
+        'is_active': isActive,
       };
 }

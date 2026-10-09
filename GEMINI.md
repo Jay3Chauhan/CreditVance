@@ -1,4 +1,4 @@
-# Antigravity Project Instructions: CardSage
+# Antigravity Project Instructions: Credvert
 See [AGENTS.md](./AGENTS.md) for complete architecture and guidelines.
 
 ## Quick Summary for Antigravity:

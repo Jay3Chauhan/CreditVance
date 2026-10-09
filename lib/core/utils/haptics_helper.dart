@@ -1,30 +1,32 @@
 import 'package:flutter/services.dart';
 
-/// Haptic feedback triggers for tactile fintech micro-interactions.
+/// Haptic feedback triggers. Respects the user's haptics setting.
 class HapticsHelper {
   const HapticsHelper._();
 
+  static bool enabled = true;
+
   static void light() {
-    HapticFeedback.lightImpact();
+    if (enabled) HapticFeedback.lightImpact();
   }
 
   static void medium() {
-    HapticFeedback.mediumImpact();
+    if (enabled) HapticFeedback.mediumImpact();
   }
 
   static void heavy() {
-    HapticFeedback.heavyImpact();
+    if (enabled) HapticFeedback.heavyImpact();
   }
 
   static void selection() {
-    HapticFeedback.selectionClick();
-  }
-
-  static void error() {
-    HapticFeedback.vibrate();
+    if (enabled) HapticFeedback.selectionClick();
   }
 
   static void success() {
-    HapticFeedback.lightImpact();
+    if (enabled) HapticFeedback.mediumImpact();
+  }
+
+  static void error() {
+    if (enabled) HapticFeedback.heavyImpact();
   }
 }

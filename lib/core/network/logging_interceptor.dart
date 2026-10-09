@@ -20,7 +20,7 @@ class LoggingInterceptor extends Interceptor {
     if (kDebugMode) {
       final method = options.method.toUpperCase();
       final uri = options.uri.toString();
-      _log('┌─── [CARDSAGE HTTP REQUEST] ──────────────────────────────────────────');
+      _log('┌─── [CREDVERT HTTP REQUEST] ──────────────────────────────────────────');
       _log('│ 🚀 $method $uri');
       _log('│ ⏱️ Timeout: ${options.connectTimeout?.inSeconds ?? 0}s');
       
@@ -55,7 +55,7 @@ class LoggingInterceptor extends Interceptor {
       final uri = response.requestOptions.uri.toString();
       final icon = (code != null && code >= 200 && code < 300) ? '✅' : '⚠️';
 
-      _log('┌─── [CARDSAGE HTTP RESPONSE: $code] ──────────────────────────────────');
+      _log('┌─── [CREDVERT HTTP RESPONSE: $code] ──────────────────────────────────');
       _log('│ $icon $uri');
             _log('│ 📦 Data: ${response.data}');
 
@@ -71,7 +71,7 @@ class LoggingInterceptor extends Interceptor {
       final code = err.response?.statusCode ?? 'NO_RESPONSE';
       final uri = err.requestOptions.uri.toString();
 
-      _log('┌─── [CARDSAGE HTTP ERROR: $code] ─────────────────────────────────────');
+      _log('┌─── [CREDVERT HTTP ERROR: $code] ─────────────────────────────────────');
       _log('│ ❌ $uri');
       _log('│ ⚠️ Message: ${err.message}');
       if (err.response?.data != null) {

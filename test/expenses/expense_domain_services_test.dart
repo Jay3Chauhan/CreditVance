@@ -1,15 +1,15 @@
-import 'package:cardsage/features/expenses/domain/entities/bill_notice.dart';
-import 'package:cardsage/features/expenses/domain/entities/card_milestone.dart';
-import 'package:cardsage/features/expenses/domain/entities/card_transaction.dart';
-import 'package:cardsage/features/expenses/domain/entities/recurring_charge.dart';
-import 'package:cardsage/features/expenses/domain/entities/spend_analytics.dart';
-import 'package:cardsage/features/expenses/domain/entities/spend_category.dart';
-import 'package:cardsage/features/expenses/domain/entities/tracked_card_ref.dart';
-import 'package:cardsage/features/expenses/domain/services/bill_status_resolver.dart';
-import 'package:cardsage/features/expenses/domain/services/card_matcher.dart';
-import 'package:cardsage/features/expenses/domain/services/milestone_calculator.dart';
-import 'package:cardsage/features/expenses/domain/services/recurring_charge_detector.dart';
-import 'package:cardsage/features/expenses/domain/services/spend_analytics_calculator.dart';
+import 'package:credvert/features/expenses/domain/entities/bill_notice.dart';
+import 'package:credvert/features/expenses/domain/entities/card_milestone.dart';
+import 'package:credvert/features/expenses/domain/entities/card_transaction.dart';
+import 'package:credvert/features/expenses/domain/entities/recurring_charge.dart';
+import 'package:credvert/features/expenses/domain/entities/spend_analytics.dart';
+import 'package:credvert/features/expenses/domain/entities/spend_category.dart';
+import 'package:credvert/features/expenses/domain/entities/tracked_card_ref.dart';
+import 'package:credvert/features/expenses/domain/services/bill_status_resolver.dart';
+import 'package:credvert/features/expenses/domain/services/card_matcher.dart';
+import 'package:credvert/features/expenses/domain/services/milestone_calculator.dart';
+import 'package:credvert/features/expenses/domain/services/recurring_charge_detector.dart';
+import 'package:credvert/features/expenses/domain/services/spend_analytics_calculator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 CardTransaction txn(
