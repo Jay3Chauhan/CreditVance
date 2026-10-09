@@ -11,6 +11,7 @@ import '../../../../core/utils/view_state.dart';
 import '../../../../core/widgets/luxury_button.dart';
 import '../../../../core/widgets/luxury_glass_card.dart';
 import '../../../../core/widgets/luxury_text_field.dart';
+import '../../../expenses/presentation/providers/expense_provider.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../providers/auth_provider.dart';
 
@@ -602,6 +603,7 @@ class _AuthenticatedProfileView extends StatelessWidget {
               onPressed: () {
                 HapticsHelper.medium();
                 final walletProv = context.read<WalletProvider>();
+                final expenseProv = context.read<ExpenseProvider>();
 
                 showDialog(
                   context: context,
@@ -629,6 +631,7 @@ class _AuthenticatedProfileView extends StatelessWidget {
                           onPressed: () async {
                             Navigator.of(dialogCtx).pop();
                             await auth.logout();
+                            await expenseProv.clearOnSignOut();
                             await walletProv.loadCards(isRefresh: true);
                             if (context.mounted) {
                               AppToast.info(

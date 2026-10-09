@@ -44,6 +44,9 @@ dependencies:
   # Local Cache & Offline Persistence
   shared_preferences: ^2.3.2
 
+  # SHA-256 dedupe hashes for parsed SMS transactions (pure Dart)
+  crypto: ^3.0.6
+
   # UI Design, Luxury Typography & Micro-Animations
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.2

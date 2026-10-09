@@ -35,6 +35,15 @@ class AppColors {
   static const Color rose = Color(0xFFF43F5E);
   static const Color amber = Color(0xFFF59E0B);
 
+  // Analytics & Spend Category Palette
+  static const Color teal = Color(0xFF14B8A6);
+  static const Color cyan = Color(0xFF06B6D4);
+  static const Color indigo = Color(0xFF6366F1);
+  static const Color pink = Color(0xFFEC4899);
+  static const Color lime = Color(0xFF84CC16);
+  static const Color orange = Color(0xFFF97316);
+  static const Color slate = Color(0xFF64748B);
+
   // Typography Palette
   static const Color textPrimary = Color(0xFFF8FAFC);
   static const Color textSecondary = Color(0xFF94A3B8);

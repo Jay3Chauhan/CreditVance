@@ -1,4 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- SMS-based money management (Google Play SMS/Call Log policy exception).
+         Read-only: used to parse bank credit card alerts on-device. Requires a
+         Permissions Declaration Form in Play Console. No SEND_SMS is requested. -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+
+    <!-- SMS permissions imply telephony; keep the app installable on tablets / Wi-Fi devices. -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+
     <application
         android:label="cardsage"
         android:name="${applicationName}"

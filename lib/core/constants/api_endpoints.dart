@@ -37,4 +37,14 @@ class ApiEndpoints {
   // Taxonomies
   static const String banks = '/banks';
   static const String categories = '/categories';
+
+  // SMS Expense Tracking (structured fields only — raw SMS bodies never leave the device)
+  static const String expenseTransactionsBatch = '/expenses/transactions/batch';
+  static const String expenseTransactions = '/expenses/transactions';
+  static String expenseTransactionByHash(String dedupeHash) => '/expenses/transactions/$dedupeHash';
+  static const String expenseConsent = '/expenses/consent';
+  static const String expenseData = '/expenses/data';
+  static const String expenseMilestones = '/expenses/milestones';
+  static const String expenseAnalyticsSummary = '/expenses/analytics/summary';
+  static const String expenseSenderRegistry = '/expenses/sender-registry';
 }

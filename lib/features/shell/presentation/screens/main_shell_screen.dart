@@ -10,6 +10,7 @@ import '../../../advisor/presentation/screens/advisor_screen.dart';
 import '../../../auth/presentation/screens/profile_screen.dart';
 import '../../../calculator/presentation/screens/calculator_screen.dart';
 import '../../../catalog/presentation/screens/catalog_screen.dart';
+import '../../../expenses/presentation/screens/spend_insights_screen.dart';
 import '../../../wallet/presentation/screens/wallet_screen.dart';
 import '../providers/navigation_provider.dart';
 
@@ -22,6 +23,7 @@ class MainShellScreen extends StatelessWidget {
   static const List<Widget> _screens = [
     AdvisorScreen(),
     WalletScreen(),
+    SpendInsightsScreen(),
     CatalogScreen(),
     CalculatorScreen(),
     ProfileScreen(),
@@ -37,6 +39,11 @@ class MainShellScreen extends StatelessWidget {
       icon: AppIcons.navWallet,
       activeIcon: AppIcons.navWalletActive,
       label: AppStrings.navWallet,
+    ),
+    _NavItemData(
+      icon: AppIcons.navSpends,
+      activeIcon: AppIcons.navSpendsActive,
+      label: AppStrings.navSpends,
     ),
     _NavItemData(
       icon: AppIcons.navCatalog,

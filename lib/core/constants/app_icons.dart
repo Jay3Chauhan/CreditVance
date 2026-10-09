@@ -22,6 +22,9 @@ class AppIcons {
   static const IconData navProfile = CupertinoIcons.person_crop_circle;
   static const IconData navProfileActive = CupertinoIcons.person_crop_circle_fill;
 
+  static const IconData navSpends = CupertinoIcons.chart_bar_square;
+  static const IconData navSpendsActive = CupertinoIcons.chart_bar_square_fill;
+
   // Actions & Buttons
   static const IconData add = CupertinoIcons.add;
   static const IconData copy = CupertinoIcons.doc_on_doc;
@@ -73,4 +76,35 @@ class AppIcons {
   static const IconData feeFree = Icons.money_off_rounded;
   static const IconData star = CupertinoIcons.star_fill;
   static const IconData contactless = Icons.contactless_rounded;
+
+  // Additional Spend Categories
+  static const IconData subscriptions = Icons.subscriptions_rounded;
+  static const IconData fees = Icons.request_quote_rounded;
+  static const IconData walletTransfer = Icons.account_balance_rounded;
+  static const IconData otherCategory = Icons.category_rounded;
+
+  // SMS Spend Tracking & Insights
+  static const IconData sms = CupertinoIcons.chat_bubble_text_fill;
+  static const IconData insights = CupertinoIcons.chart_bar_alt_fill;
+  static const IconData trendUp = CupertinoIcons.arrow_up_right;
+  static const IconData trendDown = CupertinoIcons.arrow_down_right;
+  static const IconData calendar = CupertinoIcons.calendar;
+  static const IconData receipt = Icons.receipt_long_rounded;
+  static const IconData recurring = Icons.autorenew_rounded;
+  static const IconData sync = CupertinoIcons.arrow_2_circlepath;
+  static const IconData cloudDone = Icons.cloud_done_rounded;
+  static const IconData cloudOff = Icons.cloud_off_rounded;
+  static const IconData paste = Icons.content_paste_rounded;
+  static const IconData list = CupertinoIcons.list_bullet;
+  static const IconData bell = CupertinoIcons.bell_fill;
+  static const IconData warning = CupertinoIcons.exclamationmark_triangle_fill;
+  static const IconData settings = CupertinoIcons.gear_alt_fill;
+  static const IconData pause = CupertinoIcons.pause_circle;
+  static const IconData play = CupertinoIcons.play_circle;
+  static const IconData refund = Icons.undo_rounded;
+  static const IconData payment = Icons.payments_rounded;
+  static const IconData upi = Icons.qr_code_2_rounded;
+  static const IconData store = Icons.storefront_rounded;
+  static const IconData review = CupertinoIcons.question_circle_fill;
+  static const IconData hide = CupertinoIcons.eye_slash_fill;
 }

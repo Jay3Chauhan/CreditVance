@@ -34,6 +34,24 @@ class AppDimensions {
   static const BorderRadius roundedXl = BorderRadius.all(Radius.circular(radiusXl));
   static const BorderRadius roundedFull = BorderRadius.all(Radius.circular(radiusFull));
 
+  // Icon & Avatar Sizes
+  static const double iconXs = 12.0;
+  static const double iconSm = 16.0;
+  static const double iconMd = 20.0;
+  static const double iconLg = 24.0;
+  static const double avatarSm = 32.0;
+  static const double avatarMd = 40.0;
+  static const double avatarLg = 64.0;
+  static const double dotSm = 8.0;
+
+  // Analytics & Charts
+  static const double chartHeight = 140.0;
+  static const double barRadius = 4.0;
+  static const double progressHeight = 6.0;
+  static const double stackedBarHeight = 10.0;
+  static const double chipHeight = 34.0;
+  static const double buttonHeightSm = 42.0;
+
   // Card Aspect Ratio (ISO/IEC 7810 ID-1 standard)
   static const double cardAspectRatio = 1.586; // 340dp width : ~214dp height
 

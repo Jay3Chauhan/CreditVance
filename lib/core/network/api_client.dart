@@ -58,11 +58,13 @@ class ApiClient {
     }
   }
 
-  /// Performs POST request
+  /// Performs POST request. Optional [headers] (e.g. `Idempotency-Key`) are
+  /// merged into the request.
   Future<ApiResult<T>> post<T>({
     required String path,
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
     required T Function(dynamic data) fromJson,
   }) async {
     try {
@@ -70,7 +72,24 @@ class ApiClient {
         path,
         data: data,
         queryParameters: queryParameters,
+        options: headers == null ? null : Options(headers: headers),
       );
+      return _handleResponse(response, fromJson);
+    } on DioException catch (e) {
+      return _handleDioError(e);
+    } catch (e) {
+      return ApiFailure('Unexpected error: $e', originalError: e);
+    }
+  }
+
+  /// Performs PUT request
+  Future<ApiResult<T>> put<T>({
+    required String path,
+    dynamic data,
+    required T Function(dynamic data) fromJson,
+  }) async {
+    try {
+      final response = await _dio.put(path, data: data);
       return _handleResponse(response, fromJson);
     } on DioException catch (e) {
       return _handleDioError(e);

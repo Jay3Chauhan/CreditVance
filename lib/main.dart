@@ -22,6 +22,12 @@ import 'features/calculator/presentation/providers/calculator_provider.dart';
 import 'features/catalog/data/repositories/catalog_repository_impl.dart';
 import 'features/catalog/presentation/providers/catalog_provider.dart';
 
+import 'features/expenses/data/datasources/expense_local_datasource.dart';
+import 'features/expenses/data/datasources/expense_remote_datasource.dart';
+import 'features/expenses/data/datasources/sms_platform_datasource.dart';
+import 'features/expenses/data/repositories/expense_repository_impl.dart';
+import 'features/expenses/presentation/providers/expense_provider.dart';
+
 import 'features/shell/presentation/providers/navigation_provider.dart';
 import 'features/shell/presentation/screens/main_shell_screen.dart';
 
@@ -82,6 +88,11 @@ void main(List<String> args) async {
     cacheService: cacheService,
     vaultService: vaultService,
   );
+  final expenseRepo = ExpenseRepositoryImpl(
+    platform: const MethodChannelSmsDataSource(),
+    local: ExpenseLocalDataSource(cacheService),
+    remote: ExpenseRemoteDataSource(apiClient),
+  );
 
   int initialTab = 0;
   Widget? customHome;
@@ -93,8 +104,10 @@ void main(List<String> args) async {
     customHome = const CardDetailScreen(card: sampleCard);
   } else if (debugScreen == 'add-card' || args.contains('add-card')) {
     customHome = const AddCardScreen(preselectedCard: sampleCard);
-  } else if (debugScreen == 'explore' || args.contains('explore')) {
+  } else if (debugScreen == 'spends' || args.contains('spends')) {
     initialTab = 2;
+  } else if (debugScreen == 'explore' || args.contains('explore')) {
+    initialTab = 3;
   } else if (debugScreen != null && int.tryParse(debugScreen) != null) {
     initialTab = int.parse(debugScreen);
   } else if (args.isNotEmpty && int.tryParse(args.first) != null) {
@@ -107,6 +120,10 @@ void main(List<String> args) async {
         ChangeNotifierProvider(create: (_) => NavigationProvider(initialIndex: initialTab)),
         ChangeNotifierProvider(create: (_) => CatalogProvider(catalogRepo)..init()),
         ChangeNotifierProvider(create: (_) => WalletProvider(walletRepo)..init()),
+        ChangeNotifierProxyProvider<WalletProvider, ExpenseProvider>(
+          create: (_) => ExpenseProvider(expenseRepo)..init(),
+          update: (_, wallet, expenses) => expenses!..updateCards(wallet.cards),
+        ),
         ChangeNotifierProvider(create: (_) => AdvisorProvider(advisorRepo)..init()),
         ChangeNotifierProvider(create: (_) => CalculatorProvider(calculatorRepo)..init()),
         ChangeNotifierProvider(create: (_) => AuthProvider(authRepo)..init()),

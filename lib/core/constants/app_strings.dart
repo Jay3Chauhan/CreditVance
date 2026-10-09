@@ -11,6 +11,19 @@ class AppStrings {
   static const String navCatalog = 'Explore';
   static const String navCalculator = 'Calculator';
   static const String navProfile = 'Account';
+  static const String navSpends = 'Spends';
+
+  // SMS Spend Tracking
+  static const String spendsTitle = 'Spend Insights';
+  static const String spendsSubtitle = 'Parsed on-device • Raw SMS never leaves your phone';
+  static const String smsConsentTitle = 'Track card spends from bank SMS';
+  static const String smsConsentCta = 'I Agree, Allow SMS Access';
+  static const String smsConsentDecline = 'Not Now';
+  static const String smsIosNotice =
+      'iOS does not let apps read SMS. Paste a bank SMS or add spends manually — parsing still happens on this device.';
+  static const String emptySpends = 'No card spends tracked yet';
+  static const String emptySpendsPrompt =
+      'Enable SMS tracking to automatically pick up credit card alerts from your banks, or add a spend manually.';
 
   // Advisor
   static const String advisorTitle = 'Smart Advisor';
