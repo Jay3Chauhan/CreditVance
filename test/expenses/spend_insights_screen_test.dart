@@ -5,6 +5,7 @@ import 'package:credvert/features/expenses/data/repositories/expense_repository_
 import 'package:credvert/features/expenses/domain/entities/spend_analytics.dart';
 import 'package:credvert/features/expenses/domain/entities/sms_tracking_status.dart';
 import 'package:credvert/features/expenses/presentation/providers/expense_provider.dart';
+import 'package:credvert/features/expenses/presentation/screens/add_transaction_screen.dart';
 import 'package:credvert/features/expenses/presentation/screens/sms_consent_screen.dart';
 import 'package:credvert/features/expenses/presentation/screens/spend_insights_screen.dart';
 import 'package:credvert/features/expenses/presentation/screens/transactions_screen.dart';
@@ -146,6 +147,69 @@ void main() {
 
     expect(find.text('SMS reading is Android-only'), findsOneWidget);
     expect(find.text('Add a spend'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Spend Insights renders under light theme without errors and applies light surface colors', (tester) async {
+    useTallPhone(tester);
+    final (provider, _) = await buildProvider(tester);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ExpenseProvider>.value(
+        value: provider,
+        child: MaterialApp(theme: AppTheme.lightTheme, home: const SpendInsightsScreen()),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('NET CARD SPEND • 3 MONTHS'), findsOneWidget);
+    expect(find.text('Upcoming bills'), findsOneWidget);
+    expect(find.text('Where you spent'), findsOneWidget);
+
+    // Verify scaffold background is not forced dark
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+    expect(scaffold.backgroundColor, isNull);
+  });
+
+  testWidgets('Add transaction and SMS consent screens render cleanly under light theme', (tester) async {
+    useTallPhone(tester);
+    final (provider, _) = await buildProvider(tester);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ExpenseProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: Column(
+                  children: [
+                    TextButton(onPressed: () => AddTransactionScreen.open(context), child: const Text('open add')),
+                    TextButton(onPressed: () => SmsConsentScreen.open(context), child: const Text('open consent')),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open add'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Add a spend'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    navigator.pop();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('open consent'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('SMS Spend Tracking'), findsOneWidget);
+    expect(find.text('What we read'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

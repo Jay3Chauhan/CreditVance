@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Credvert</title>
+  <meta name="description" content="Privacy Policy and Zero-Knowledge Security Model for Credvert.">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root {
+      --bg: #090B10;
+      --surface: #11151F;
+      --surface-border: #1C2436;
+      --text: #F1F5F9;
+      --text-muted: #94A3B8;
+      --gold: #DFB76C;
+      --gold-dim: rgba(223, 183, 108, 0.12);
+      --emerald: #10B981;
+      --sapphire: #3B82F6;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-family);
+      line-height: 1.7;
+      padding: 0 1.25rem 4rem;
+    }
+    header {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2.5rem 0 1.5rem;
+      border-bottom: 1px solid var(--surface-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, #DFB76C, #99732E);
+      color: #090B10;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    nav {
+      display: flex;
+      gap: 1.25rem;
+      font-size: 0.9rem;
+    }
+    nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    nav a:hover, nav a.active {
+      color: var(--gold);
+    }
+    main {
+      max-width: 860px;
+      margin: 2.5rem auto 0;
+    }
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      color: #FFFFFF;
+    }
+    .meta {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+    h2 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 2.5rem 0 1rem;
+      color: var(--gold);
+      border-bottom: 1px solid var(--surface-border);
+      padding-bottom: 0.4rem;
+    }
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.5rem;
+      color: #FFFFFF;
+    }
+    p { margin-bottom: 1.1rem; color: #CBD5E1; }
+    ul, ol { margin: 0 0 1.25rem 1.5rem; color: #CBD5E1; }
+    li { margin-bottom: 0.4rem; }
+    strong { color: #FFFFFF; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .callout-highlight {
+      background: var(--gold-dim);
+      border-left: 4px solid var(--gold);
+      padding: 1.25rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1.5rem 0;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      border-radius: 8px;
+      border: 1px solid var(--surface-border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+      background: var(--surface);
+    }
+    th, td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--surface-border);
+    }
+    th {
+      background: #151B28;
+      color: var(--gold);
+      font-weight: 600;
+    }
+    tr:last-child td { border-bottom: none; }
+    footer {
+      max-width: 860px;
+      margin: 4rem auto 0;
+      padding-top: 2rem;
+      border-top: 1px solid var(--surface-border);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="brand">
+    Credvert
+    <span class="brand-badge">Zero-Knowledge</span>
+  </a>
+  <nav>
+    <a href="privacy.html" class="active">Privacy Policy</a>
+    <a href="terms.html">Terms of Service</a>
+    <a href="deletion.html">Data Deletion</a>
+  </nav>
+</header>
+
+<main>
+  <h1>Privacy Policy</h1>
+  <div class="meta">
+    Application: <strong>Credvert</strong> (<code>com.jaychauhan.credvert</code>) &bull; Effective Date: October 18, 2026 &bull; Developer: Jay Chauhan
+  </div>
+
+  <div class="callout-highlight">
+    <strong>Zero-Knowledge Core Promise:</strong> Credvert never sends your 16-digit card number (PAN), CVV, or full expiry to any server. Your sensitive card credentials are encrypted with AES-256-GCM and kept solely inside your phone's hardware security enclave (Android Keystore / iOS Secure Enclave). We never sell your data, and on-device SMS parsing never uploads raw SMS texts.
+  </div>
+
+  <h2>1. Overview and Scope</h2>
+  <p>
+    Credvert ("we", "our", or "us") provides a privacy-first credit card intelligence, rewards optimization, expense tracking, and card management platform. This Privacy Policy details our data collection, local processing, on-device encryption, and your legal rights under the <strong>Digital Personal Data Protection Act (India DPDP Act 2023)</strong>, <strong>GDPR</strong>, and <strong>CCPA/CPRA</strong>.
+  </p>
+
+  <h2>2. Information Stored Strictly On-Device (Never Leaves Your Phone)</h2>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Data Element</th>
+          <th>Purpose</th>
+          <th>Storage Security</th>
+          <th>Server Upload?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Full Card PAN (16 Digits)</strong></td>
+          <td>Quick autofill and one-tap copy at checkout.</td>
+          <td>Hardware Android Keystore / iOS Secure Enclave.</td>
+          <td><strong>NO (Zero-Knowledge)</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Card CVV Code</strong></td>
+          <td>Secure storage for online checkouts.</td>
+          <td>Biometric gate required to decrypt.</td>
+          <td><strong>NO (Zero-Knowledge)</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Full Expiry Date</strong></td>
+          <td>Payment validity tracking.</td>
+          <td>Hardware-isolated enclave encryption.</td>
+          <td><strong>NO (Zero-Knowledge)</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Biometric Scans</strong></td>
+          <td>Unlocking the app and revealing card secrets.</td>
+          <td>Handled 100% by OS (BiometricPrompt / LocalAuth).</td>
+          <td><strong>NO (App has zero access)</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Raw SMS Message Text</strong></td>
+          <td>Extracting bank transaction alerts.</td>
+          <td>Processed locally in memory and discarded immediately.</td>
+          <td><strong>NO (Never transmitted)</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>3. Information Collected When You Create an Account</h2>
+  <p>If you choose to sign in to sync your cards across devices, we collect and securely sync:</p>
+  <ul>
+    <li><strong>Account Information:</strong> Email address, hashed password, optional display name, and user ID.</li>
+    <li><strong>Card Metadata (Non-Sensitive):</strong> Card product name (e.g. "Infinia"), issuing bank, user nickname, last 4 digits of the card, statement generation day, and payment due date. (Last 4 digits are used strictly for card identification).</li>
+    <li><strong>Spend & Transaction Records:</strong> Parsed transaction amount, currency, merchant name, category, transaction date, issuing bank, and last 4 digits for spend insights, fee-waiver milestones, and bill reminders.</li>
+    <li><strong>Shortlist & Preferences:</strong> Bookmarked credit cards, comparison trays, and user interface preferences.</li>
+  </ul>
+
+  <h2>4. Financial SMS Processing (Google Play Policy Compliance)</h2>
+  <div class="card">
+    <p>Credvert requests Android <code>READ_SMS</code> and <code>RECEIVE_SMS</code> permissions strictly under Google Play's <strong>Financial Services / SMS-based Money Management</strong> exception:</p>
+    <ul>
+      <li><strong>Prominent In-App Disclosure:</strong> Before any runtime prompt, a full-screen disclosure explains what is read and how it is protected.</li>
+      <li><strong>Affirmative User Consent:</strong> SMS tracking is optional. You must tap "I Agree, Allow SMS Access" to enable it.</li>
+      <li><strong>Read-Only Operation:</strong> Credvert has no phone or <code>SEND_SMS</code> permissions and cannot send messages.</li>
+      <li><strong>Bank Sender Whitelist:</strong> Only SMS messages originating from verified bank sender IDs (e.g., <code>HDFCBK</code>, <code>ICICIT</code>, <code>SBICRD</code>, <code>AXISBK</code>) are processed.</li>
+      <li><strong>Zero Access to Personal SMS or OTPs:</strong> All personal chats, non-financial texts, and verification codes/OTPs are filtered out and ignored.</li>
+      <li><strong>100% Local Parsing:</strong> Extraction occurs entirely in on-device memory; raw SMS text never leaves the phone.</li>
+      <li><strong>Instant Revocation:</strong> You can pause tracking or erase all spend data at any time under Tracking & Privacy settings.</li>
+    </ul>
+  </div>
+
+  <h2>5. Diagnostics and Technical Telemetry</h2>
+  <p>To keep the app fast and reliable, we use standard Google Firebase infrastructure:</p>
+  <ul>
+    <li><strong>Crashlytics:</strong> Anonymized stack traces and OS versions upon crashes. No card numbers or CVVs are ever included.</li>
+    <li><strong>Performance Monitoring:</strong> Network latency and launch benchmarks.</li>
+    <li><strong>Analytics:</strong> Aggregated screen views and button taps (can be toggled off under <em>Account &rarr; Settings &rarr; Diagnostics</em>).</li>
+    <li><strong>Firebase Cloud Messaging (FCM):</strong> Device tokens used exclusively to deliver your scheduled bill due reminders.</li>
+  </ul>
+
+  <h2>6. No Sale or Brokerage of Data</h2>
+  <p>
+    <strong>Credvert does not sell, lease, or monetize your personal or financial information.</strong> We do not share your data with credit bureaus, loan brokers, lead generators, or third-party ad networks. Data is shared only with cloud infrastructure processors (Google Firebase, Supabase/Neon PostgreSQL) bound by strict confidentiality and data protection agreements.
+  </p>
+
+  <h2>7. Data Retention & Erasure</h2>
+  <ul>
+    <li><strong>On-Device Data:</strong> Cleared immediately when you tap "Reset this device" or uninstall the application.</li>
+    <li><strong>Account Deletion:</strong> Initiated via in-app <em>Account &rarr; Delete Account</em> or online at <a href="deletion.html" style="color:var(--gold);">credvert.app/deletion</a>. Active user records and synced cards are purged within 24 hours. Disaster recovery backups are permanently overwritten within 30 to 90 days.</li>
+  </ul>
+
+  <h2>8. Your Rights & Grievance Redressal</h2>
+  <p>Under the India DPDP Act 2023, GDPR, and CCPA, you have the right to access, rectify, port, or erase your data, and revoke consent at any time.</p>
+  <div class="card">
+    <p><strong>Designated Grievance Redressal Officer (India DPDP Act):</strong></p>
+    <p>Officer: <strong>Jay Chauhan</strong><br>
+    Email: <a href="mailto:grievance@credvert.app" style="color:var(--gold);">grievance@credvert.app</a><br>
+    General Support: <a href="mailto:support@credvert.app" style="color:var(--gold);">support@credvert.app</a><br>
+    Address: Ahmedabad, Gujarat, India</p>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0;">Grievance inquiries are acknowledged within 24 hours and addressed within 30 days.</p>
+  </div>
+</main>
+
+<footer>
+  &copy; 2026 Credvert by Jay Chauhan. All rights reserved. Zero-Knowledge Credit Card Intelligence.
+</footer>
+
+</body>
+</html>

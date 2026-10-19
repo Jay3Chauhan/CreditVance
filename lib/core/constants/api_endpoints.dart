@@ -63,5 +63,14 @@ class ApiEndpoints {
   static const String expenseMilestones = '/expenses/milestones';
   static const String expenseAnalyticsSummary = '/expenses/analytics/summary';
   static const String expenseSenderRegistry = '/expenses/sender-registry';
+
+  // Notifications & Reminders
+  static const String notificationDeviceToken = '/notifications/device-token';
+  static const String notificationStatus = '/notifications/status';
+  static const String notificationPreferences = '/notifications/preferences';
+  static const String notificationTest = '/notifications/test';
+  static const String notificationHistory = '/notifications/history';
+  static const String notificationReminders = '/notifications/reminders';
+
   static const int pageSize = 20;
 }

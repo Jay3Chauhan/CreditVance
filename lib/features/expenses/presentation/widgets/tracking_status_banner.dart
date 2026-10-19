@@ -8,6 +8,7 @@ import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/haptics_helper.dart';
 import '../../../../core/widgets/luxury_button.dart';
 import '../../../../core/widgets/luxury_glass_card.dart';
@@ -60,6 +61,7 @@ class TrackingStatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Selector<ExpenseProvider, _BannerData>(
       selector: (_, p) => _BannerData(
         supported: p.isSmsSupported,
@@ -73,9 +75,9 @@ class TrackingStatusBanner extends StatelessWidget {
       ),
       builder: (context, data, _) {
         if (!data.supported) {
-          return const _NoticeCard(
+          return _NoticeCard(
             icon: AppIcons.info,
-            accent: AppColors.sapphireLight,
+            accent: c.info,
             title: 'SMS reading is Android-only',
             message: AppStrings.smsIosNotice,
           );
@@ -86,7 +88,7 @@ class TrackingStatusBanner extends StatelessWidget {
         if (data.consent == SmsConsentStatus.withdrawn) {
           return _NoticeCard(
             icon: AppIcons.pause,
-            accent: AppColors.amber,
+            accent: c.warning,
             title: 'SMS tracking is paused',
             message: 'New bank SMS are not being read. Your existing history stays on this device.',
             actionLabel: 'Resume tracking',
@@ -98,7 +100,7 @@ class TrackingStatusBanner extends StatelessWidget {
           final permanent = data.permission == SmsPermissionStatus.permanentlyDenied;
           return _NoticeCard(
             icon: AppIcons.warning,
-            accent: AppColors.rose,
+            accent: c.danger,
             title: 'SMS permission is off',
             message: permanent
                 ? 'Allow SMS access in system Settings → Permissions to resume automatic tracking.'
@@ -126,22 +128,28 @@ class SmsConsentPromptCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return LuxuryGlassCard(
-      border: Border.all(color: AppColors.borderGlow),
+      border: Border.all(color: c.isDark ? AppColors.borderGlow : c.border),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(AppIcons.sms, color: AppColors.gold, size: AppDimensions.iconLg),
+              Icon(AppIcons.sms, color: c.accent, size: AppDimensions.iconLg),
               const SizedBox(width: AppDimensions.p12),
-              Expanded(child: Text(AppStrings.smsConsentTitle, style: AppTypography.headlineMedium)),
+              Expanded(
+                child: Text(
+                  AppStrings.smsConsentTitle,
+                  style: context.text.headlineMedium ?? AppTypography.headlineMedium,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppDimensions.p8),
           Text(
-            'CardSage reads only bank credit card alerts, parses them on this phone and never uploads the SMS text.',
-            style: AppTypography.bodyMedium,
+            'Credvert reads only bank credit card alerts, parses them on this phone and never uploads the SMS text.',
+            style: context.text.bodyMedium ?? AppTypography.bodyMedium,
           ),
           const SizedBox(height: AppDimensions.p16),
           LuxuryButton(
@@ -185,9 +193,9 @@ class _NoticeCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTypography.titleMedium),
+                Text(title, style: context.text.titleMedium ?? AppTypography.titleMedium),
                 const SizedBox(height: AppDimensions.p4),
-                Text(message, style: AppTypography.bodyMedium),
+                Text(message, style: context.text.bodyMedium ?? AppTypography.bodyMedium),
                 if (actionLabel != null && onAction != null)
                   TextButton(
                     onPressed: () {
@@ -214,31 +222,32 @@ class _SyncStatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final (IconData icon, Color color, String label) = switch (data.sync) {
-      _ when data.scanning => (AppIcons.sms, AppColors.goldLight, 'Reading new bank SMS on device…'),
-      ExpenseSyncStatus.syncing => (AppIcons.sync, AppColors.sapphireLight, 'Backing up parsed spends…'),
+      _ when data.scanning => (AppIcons.sms, c.accent, 'Reading new bank SMS on device…'),
+      ExpenseSyncStatus.syncing => (AppIcons.sync, c.info, 'Backing up parsed spends…'),
       ExpenseSyncStatus.synced => (
           AppIcons.cloudDone,
-          AppColors.emeraldLight,
+          c.success,
           data.lastSynced == null ? 'Backed up' : 'Backed up ${_timeFormat.format(data.lastSynced!)}',
         ),
-      ExpenseSyncStatus.offline => (AppIcons.cloudOff, AppColors.textSecondary, 'Offline — ${data.pending} pending'),
-      ExpenseSyncStatus.signedOut => (AppIcons.user, AppColors.amber, 'Sign in to back up parsed spends'),
-      ExpenseSyncStatus.unavailable => (AppIcons.lock, AppColors.textSecondary, 'On-device mode — cloud backup coming soon'),
-      ExpenseSyncStatus.serverError => (AppIcons.alertCircle, AppColors.rose, 'Backup failed — will retry'),
-      ExpenseSyncStatus.idle => (AppIcons.shieldCheck, AppColors.emeraldLight, 'Tracking active • parsed on device'),
+      ExpenseSyncStatus.offline => (AppIcons.cloudOff, c.textSecondary, 'Offline — ${data.pending} pending'),
+      ExpenseSyncStatus.signedOut => (AppIcons.user, c.warning, 'Sign in to back up parsed spends'),
+      ExpenseSyncStatus.unavailable => (AppIcons.lock, c.textSecondary, 'On-device mode — cloud backup coming soon'),
+      ExpenseSyncStatus.serverError => (AppIcons.alertCircle, c.danger, 'Backup failed — will retry'),
+      ExpenseSyncStatus.idle => (AppIcons.shieldCheck, c.success, 'Tracking active • parsed on device'),
     };
 
     return Row(
       children: [
         Icon(icon, size: AppDimensions.iconSm, color: color),
         const SizedBox(width: AppDimensions.p8),
-        Expanded(child: Text(label, style: AppTypography.labelSmall.copyWith(color: color))),
+        Expanded(child: Text(label, style: (context.text.labelSmall ?? AppTypography.labelSmall).copyWith(color: color))),
         if (data.scanning || data.sync == ExpenseSyncStatus.syncing)
-          const SizedBox(
+          SizedBox(
             width: AppDimensions.iconSm,
             height: AppDimensions.iconSm,
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold),
+            child: CircularProgressIndicator(strokeWidth: 2, color: c.accent),
           ),
       ],
     );

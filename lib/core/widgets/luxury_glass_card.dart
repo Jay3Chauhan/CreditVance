@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_dimensions.dart';
+import '../utils/context_ext.dart';
 
 /// High-performance glassmorphic container with refined luminous borders.
+/// Adapts dynamically to light and dark themes.
 /// When tappable (onTap != null): animates press glow + scale for premium tactile feedback.
 /// Zero setState: uses `ValueNotifier<bool>` for press state.
 class LuxuryGlassCard extends StatelessWidget {
@@ -32,7 +34,7 @@ class LuxuryGlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (onTap == null) {
-      return _buildCard(isPressed: false);
+      return _buildCard(context, isPressed: false);
     }
 
     final pressedNotifier = ValueNotifier<bool>(false);
@@ -50,41 +52,52 @@ class LuxuryGlassCard extends StatelessWidget {
             scale: isPressed ? 0.985 : 1.0,
             duration: const Duration(milliseconds: 90),
             curve: Curves.easeOut,
-            child: _buildCard(isPressed: isPressed),
+            child: _buildCard(context, isPressed: isPressed),
           ),
         );
       },
     );
   }
 
-  Widget _buildCard({required bool isPressed}) {
+  Widget _buildCard(BuildContext context, {required bool isPressed}) {
+    final c = context.colors;
     return Container(
       width: width,
       height: height,
       padding: padding,
       decoration: BoxDecoration(
-        color: backgroundColor ?? AppColors.surfaceCard.withOpacity(0.85),
+        color: backgroundColor ??
+            (c.isDark ? AppColors.surfaceCard.withValues(alpha: 0.85) : c.surface),
         gradient: gradient,
         borderRadius: BorderRadius.circular(borderRadius),
         border: border ??
             Border.all(
               color: isPressed
-                  ? AppColors.gold.withOpacity(0.35)
-                  : AppColors.borderSubtle,
+                  ? c.accent.withValues(alpha: 0.35)
+                  : c.border,
               width: isPressed ? 1.2 : 1.0,
             ),
         boxShadow: isPressed
             ? [
                 BoxShadow(
-                  color: AppColors.gold.withOpacity(0.12),
+                  color: c.accent.withValues(alpha: c.isDark ? 0.12 : 0.18),
                   blurRadius: 20,
                   spreadRadius: 1,
                   offset: const Offset(0, 4),
                 ),
               ]
-            : null,
+            : (c.isDark
+                ? null
+                : [
+                    BoxShadow(
+                      color: c.shadow,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]),
       ),
       child: child,
     );
   }
 }
+

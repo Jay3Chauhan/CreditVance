@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/entities/spend_analytics.dart';
 import 'category_visuals.dart';
@@ -78,7 +78,7 @@ class _CategoryRow extends StatelessWidget {
                     const SizedBox(width: AppDimensions.p8),
                     Text(
                       '${(spend.share * 100).toStringAsFixed(0)}% • ${spend.count}',
-                      style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary),
+                      style: (context.text.labelSmall ?? AppTypography.labelSmall).copyWith(color: context.colors.textTertiary),
                     ),
                   ],
                 ),

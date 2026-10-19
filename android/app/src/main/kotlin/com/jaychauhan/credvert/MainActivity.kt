@@ -27,14 +27,29 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val notificationManager = getSystemService(NotificationManager::class.java)
+
+            val generalChannel = NotificationChannel(
                 "credvert_general",
                 "Credvert updates",
-                NotificationManager.IMPORTANCE_DEFAULT,
+                NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = "App updates, announcements, and reminders"
+                enableLights(true)
+                enableVibration(true)
             }
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+            notificationManager.createNotificationChannel(generalChannel)
+
+            val remindersChannel = NotificationChannel(
+                "creditvance_reminders",
+                "Credit Card Due Reminders",
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "Statement generation and bill payment due date alerts"
+                enableLights(true)
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(remindersChannel)
         }
     }
 

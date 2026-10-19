@@ -82,9 +82,11 @@ class ApiClient {
 
   Future<ApiResult<T>> delete<T>({
     required String path,
+    Map<String, dynamic>? queryParameters,
+    dynamic data,
     required T Function(dynamic data) fromJson,
   }) =>
-      _send(() => _dio.delete(path), fromJson);
+      _send(() => _dio.delete(path, queryParameters: queryParameters, data: data), fromJson);
 
   Future<ApiResult<T>> _send<T>(
     Future<Response<dynamic>> Function() request,

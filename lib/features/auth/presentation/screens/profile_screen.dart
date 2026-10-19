@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -6,6 +7,7 @@ import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/storage/secure_vault_service.dart';
 import '../../../../core/utils/app_toast.dart';
 import '../../../../core/utils/context_ext.dart';
@@ -13,6 +15,8 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_sheet.dart';
 import '../../../../core/widgets/app_surface.dart';
+import '../../../../core/widgets/luxury_badge.dart';
+import '../../../../core/widgets/luxury_button.dart';
 import '../../../../core/widgets/settings_tile.dart';
 import '../../../../core/firebase/messaging_service.dart';
 import '../../../catalog/presentation/providers/catalog_provider.dart';
@@ -627,26 +631,208 @@ class _PrivacySection extends StatelessWidget {
         if (push)
           SettingsTile(
             icon: AppIcons.bell,
-            title: 'Notifications',
-            subtitle: 'Alerts for updates and announcements',
-            onTap: () => _enableNotifications(context),
+            title: 'Notifications & Devices',
+            subtitle: 'Device token, alerts and reminders',
+            onTap: () => _openNotificationSettings(context),
           ),
       ],
     );
   }
 }
 
-Future<void> _enableNotifications(BuildContext context) async {
-  final result = await MessagingService.requestPermission();
+Future<void> _openNotificationSettings(BuildContext context) async {
+  final api = context.read<ApiClient>();
+  final c = context.colors;
+
+  final token = MessagingService.currentToken ?? await MessagingService.getToken();
+
   if (!context.mounted) return;
-  switch (result) {
-    case PushPermission.granted:
-      AppToast.success(context, message: 'Notifications are on');
-    case PushPermission.denied:
-      AppToast.warning(context, message: 'Notifications are off. You can enable them in system settings.');
-    case PushPermission.unavailable:
-      AppToast.info(context, message: 'Notifications are not available on this device yet');
-  }
+
+  showAppSheet<void>(
+    context,
+    builder: (ctx) {
+      final tokenNotifier = ValueNotifier<String?>(token);
+      final syncBusyNotifier = ValueNotifier<bool>(false);
+      final testBusyNotifier = ValueNotifier<bool>(false);
+
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  IconHalo(icon: AppIcons.bell, color: c.accent, size: 36, iconSize: 18),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Push Notifications & Device', style: ctx.text.headlineSmall),
+                        Text('FCM token status and device registration', style: ctx.text.bodySmall),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: c.surface,
+                  borderRadius: AppDimensions.roundedLg,
+                  border: Border.all(color: c.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('FCM Registration Token', style: ctx.text.labelMedium),
+                        ValueListenableBuilder<String?>(
+                          valueListenable: tokenNotifier,
+                          builder: (_, tok, __) => LuxuryBadge(
+                            label: tok != null && tok.isNotEmpty ? 'Active' : 'Unregistered',
+                            variant: tok != null && tok.isNotEmpty
+                                ? LuxuryBadgeVariant.emerald
+                                : LuxuryBadgeVariant.neutral,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ValueListenableBuilder<String?>(
+                      valueListenable: tokenNotifier,
+                      builder: (_, tok, __) => Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: c.canvas,
+                          borderRadius: AppDimensions.roundedSm,
+                          border: Border.all(color: c.border),
+                        ),
+                        child: SelectableText(
+                          tok != null && tok.isNotEmpty
+                              ? tok
+                              : 'No token generated. Tap "Request Permission" below.',
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                            color: tok != null && tok.isNotEmpty ? c.textSecondary : c.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppButton.outline(
+                            label: 'Copy Token',
+                            icon: AppIcons.clipboard,
+                            onPressed: () async {
+                              final current = tokenNotifier.value;
+                              if (current != null && current.isNotEmpty) {
+                                await Clipboard.setData(ClipboardData(text: current));
+                                if (ctx.mounted) {
+                                  AppToast.success(ctx, message: 'FCM token copied to clipboard');
+                                }
+                              } else {
+                                AppToast.warning(ctx, message: 'No token available to copy');
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ValueListenableBuilder<bool>(
+                            valueListenable: syncBusyNotifier,
+                            builder: (_, busy, __) => AppButton(
+                              label: 'Sync Server',
+                              icon: AppIcons.cloudDone,
+                              isLoading: busy,
+                              onPressed: () async {
+                                syncBusyNotifier.value = true;
+                                try {
+                                  final success = await MessagingService.syncDeviceToken(api);
+                                  final fresh = await MessagingService.getToken();
+                                  tokenNotifier.value = fresh;
+                                  if (ctx.mounted) {
+                                    if (success) {
+                                      AppToast.success(ctx, message: 'Device registered with Credvert server!');
+                                    } else {
+                                      AppToast.warning(ctx, message: 'Could not register device with server.');
+                                    }
+                                  }
+                                } finally {
+                                  syncBusyNotifier.value = false;
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: c.surface,
+                  borderRadius: AppDimensions.roundedLg,
+                  border: Border.all(color: c.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Test Notification Delivery', style: ctx.text.labelMedium),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Dispatches a real push notification via the server API to verify device delivery.',
+                      style: ctx.text.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: testBusyNotifier,
+                      builder: (_, busy, __) => LuxuryButton(
+                        label: 'Send Test Notification',
+                        icon: AppIcons.sparkles,
+                        isLoading: busy,
+                        onPressed: () async {
+                          testBusyNotifier.value = true;
+                          try {
+                            final res = await MessagingService.sendTestNotification(api);
+                            if (ctx.mounted) {
+                              res.when(
+                                success: (_) => AppToast.success(
+                                  ctx,
+                                  message: 'Test push notification sent! Check notifications.',
+                                ),
+                                failure: (msg, _) => AppToast.warning(ctx, message: msg),
+                              );
+                            }
+                          } finally {
+                            testBusyNotifier.value = false;
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class _AboutSection extends StatelessWidget {
@@ -735,8 +921,7 @@ Future<void> _openLegal(BuildContext context, {required bool privacy}) async {
     url = privacy ? config.privacyPolicyUrl : config.termsUrl;
   }
   if (url == null || url.isEmpty) {
-    AppToast.error(context, message: 'That page is not available right now');
-    return;
+    url = privacy ? 'https://credvert.app/privacy.html' : 'https://credvert.app/terms.html';
   }
   await openExternalUrl(context, url);
 }

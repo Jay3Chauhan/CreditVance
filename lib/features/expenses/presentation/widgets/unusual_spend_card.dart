@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/entities/card_transaction.dart';
 import 'insights_section.dart';
@@ -20,11 +20,12 @@ class UnusualSpendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return InsightsSection(
       title: 'Unusual spends',
       subtitle: 'Much larger than your typical purchase — verify these',
       icon: AppIcons.warning,
-      accent: AppColors.rose,
+      accent: c.danger,
       index: index,
       child: Column(
         children: [
@@ -37,17 +38,17 @@ class UnusualSpendCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(t.merchantName, style: AppTypography.titleSmall),
+                        Text(t.merchantName, style: context.text.titleSmall ?? AppTypography.titleSmall),
                         Text(
                           '${_dateFormat.format(t.occurredAt)}${t.cardLast4 == null ? '' : ' • •• ${t.cardLast4}'}',
-                          style: AppTypography.bodySmall,
+                          style: context.text.bodySmall ?? AppTypography.bodySmall,
                         ),
                       ],
                     ),
                   ),
                   Text(
                     CurrencyFormatter.format(t.amount),
-                    style: AppTypography.titleSmall.copyWith(color: AppColors.rose),
+                    style: (context.text.titleSmall ?? AppTypography.titleSmall).copyWith(color: c.danger),
                   ),
                 ],
               ),

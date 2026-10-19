@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/entities/spend_analytics.dart';
 import 'insights_section.dart';
@@ -20,6 +21,7 @@ class MonthlyTrendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final maxAmount = months.fold<double>(0, (a, m) => m.amount > a ? m.amount : a);
     final average = months.isEmpty ? 0.0 : months.fold<double>(0, (a, m) => a + m.amount) / months.length;
 
@@ -27,7 +29,7 @@ class MonthlyTrendCard extends StatelessWidget {
       title: 'Monthly trend',
       subtitle: 'Avg ${CurrencyFormatter.format(average)} / month',
       icon: AppIcons.insights,
-      accent: AppColors.sapphireLight,
+      accent: c.info,
       index: index,
       child: SizedBox(
         height: AppDimensions.chartHeight,
@@ -60,6 +62,7 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppDimensions.p4),
       child: Column(
@@ -67,7 +70,9 @@ class _Bar extends StatelessWidget {
         children: [
           Text(
             amount > 0 ? CurrencyFormatter.formatCompact(amount) : '—',
-            style: AppTypography.labelSmall.copyWith(color: isLatest ? AppColors.goldLight : AppColors.textTertiary),
+            style: (context.text.labelSmall ?? AppTypography.labelSmall).copyWith(
+              color: isLatest ? (c.isDark ? AppColors.goldLight : c.accent) : c.textTertiary,
+            ),
             maxLines: 1,
           ),
           const SizedBox(height: AppDimensions.p4),
@@ -82,7 +87,13 @@ class _Bar extends StatelessWidget {
                   heightFactor: value < 0.02 ? 0.02 : value,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      gradient: isLatest ? AppColors.goldGradient : AppColors.sapphireGradient,
+                      gradient: isLatest
+                          ? (c.isDark
+                              ? AppColors.goldGradient
+                              : LinearGradient(colors: [c.accent, c.accent.withValues(alpha: 0.75)]))
+                          : (c.isDark
+                              ? AppColors.sapphireGradient
+                              : LinearGradient(colors: [c.info, c.info.withValues(alpha: 0.75)])),
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(AppDimensions.barRadius)),
                     ),
                     child: const SizedBox.expand(),
@@ -92,7 +103,7 @@ class _Bar extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppDimensions.p4),
-          Text(label, style: AppTypography.labelSmall),
+          Text(label, style: context.text.labelSmall ?? AppTypography.labelSmall),
         ],
       ),
     );

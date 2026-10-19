@@ -4,10 +4,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/app_toast.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/haptics_helper.dart';
@@ -72,10 +72,10 @@ class AddTransactionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final form = context.read<_AddTransactionForm>();
     return Scaffold(
-      backgroundColor: AppColors.canvasDark,
-      appBar: AppBar(title: Text('Add a spend', style: AppTypography.headlineLarge)),
+      appBar: AppBar(title: Text('Add a spend', style: AppTypography.headlineLarge.copyWith(color: c.textPrimary))),
       body: SafeArea(
         child: ListView(
           padding: AppDimensions.screenPadding,
@@ -125,7 +125,7 @@ class _PasteSmsForm extends StatelessWidget {
       children: [
         Text(
           'Long-press a bank SMS → Copy, then paste it here. It is parsed on this device; the text is not saved.',
-          style: AppTypography.bodyMedium,
+          style: AppTypography.bodyMedium.copyWith(color: context.colors.textSecondary),
         ),
         const SizedBox(height: AppDimensions.p12),
         LuxuryTextField(
@@ -196,10 +196,11 @@ class _PreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final (IconData icon, Color color, String title, List<String> lines) = switch (outcome) {
       ParsedTransaction(:final transaction) => (
           AppIcons.check,
-          AppColors.emerald,
+          c.success,
           '${transaction.type.name.toUpperCase()} • '
               '${CurrencyFormatter.formatWithCode(transaction.amount, transaction.currency, showDecimals: true)}',
           [
@@ -211,7 +212,7 @@ class _PreviewCard extends StatelessWidget {
         ),
       ParsedBillNotice(:final notice) => (
           AppIcons.receipt,
-          AppColors.amber,
+          c.warning,
           'Bill notice • ${notice.bankName}',
           [
             if (notice.totalDue != null) 'Total due: ${CurrencyFormatter.format(notice.totalDue!, showDecimals: true)}',
@@ -220,7 +221,7 @@ class _PreviewCard extends StatelessWidget {
             if (notice.dueDate != null) 'Due: ${DateFormat('d MMM yyyy').format(notice.dueDate!)}',
           ],
         ),
-      RejectedSms(:final reason) => (AppIcons.alertCircle, AppColors.rose, 'Not a card transaction', [reason.label]),
+      RejectedSms(:final reason) => (AppIcons.alertCircle, c.danger, 'Not a card transaction', [reason.label]),
     };
 
     return LuxuryGlassCard(
@@ -232,11 +233,11 @@ class _PreviewCard extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: AppDimensions.iconMd),
               const SizedBox(width: AppDimensions.p8),
-              Expanded(child: Text(title, style: AppTypography.titleMedium)),
+              Expanded(child: Text(title, style: AppTypography.titleMedium.copyWith(color: c.textPrimary))),
             ],
           ),
           const SizedBox(height: AppDimensions.p8),
-          for (final line in lines) Text(line, style: AppTypography.bodyMedium),
+          for (final line in lines) Text(line, style: AppTypography.bodyMedium.copyWith(color: c.textSecondary)),
         ],
       ),
     ).animate().fadeIn(duration: AppDimensions.fastAnim);
@@ -250,6 +251,7 @@ class _ManualEntryForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final form = context.read<_AddTransactionForm>();
     final cards = context.read<ExpenseProvider>().cards;
 
@@ -286,7 +288,7 @@ class _ManualEntryForm extends StatelessWidget {
         ),
         const SizedBox(height: AppDimensions.p16),
         if (cards.isNotEmpty) ...[
-          Text('Card', style: AppTypography.labelSmall),
+          Text('Card', style: AppTypography.labelSmall.copyWith(color: c.textSecondary)),
           const SizedBox(height: AppDimensions.p8),
           ValueListenableBuilder<int?>(
             valueListenable: form.cardId,
@@ -294,23 +296,23 @@ class _ManualEntryForm extends StatelessWidget {
               spacing: AppDimensions.p8,
               runSpacing: AppDimensions.p8,
               children: [
-                for (final c in cards)
+                for (final card in cards)
                   ChoiceChip(
-                    label: Text('${c.label} •• ${c.last4}'),
-                    selected: selected == c.userCardId,
-                    selectedColor: AppColors.gold,
-                    backgroundColor: AppColors.surfaceSecondary,
+                    label: Text('${card.label} •• ${card.last4}'),
+                    selected: selected == card.userCardId,
+                    selectedColor: c.accent,
+                    backgroundColor: c.surfaceAlt,
                     labelStyle: AppTypography.labelSmall.copyWith(
-                      color: selected == c.userCardId ? AppColors.canvasDark : AppColors.textSecondary,
+                      color: selected == card.userCardId ? c.onAccent : c.textSecondary,
                     ),
-                    onSelected: (on) => form.cardId.value = on ? c.userCardId : null,
+                    onSelected: (on) => form.cardId.value = on ? card.userCardId : null,
                   ),
               ],
             ),
           ),
           const SizedBox(height: AppDimensions.p16),
         ],
-        Text('Category', style: AppTypography.labelSmall),
+        Text('Category', style: AppTypography.labelSmall.copyWith(color: c.textSecondary)),
         const SizedBox(height: AppDimensions.p8),
         ValueListenableBuilder<SpendCategory>(
           valueListenable: form.category,
@@ -318,19 +320,19 @@ class _ManualEntryForm extends StatelessWidget {
             spacing: AppDimensions.p8,
             runSpacing: AppDimensions.p8,
             children: [
-              for (final c in SpendCategory.values)
+              for (final cat in SpendCategory.values)
                 ChoiceChip(
-                  avatar: Icon(c.icon, size: AppDimensions.iconSm, color: selected == c ? AppColors.canvasDark : c.color),
-                  label: Text(c.label),
-                  selected: selected == c,
-                  selectedColor: AppColors.gold,
-                  backgroundColor: AppColors.surfaceSecondary,
+                  avatar: Icon(cat.icon, size: AppDimensions.iconSm, color: selected == cat ? c.onAccent : cat.color),
+                  label: Text(cat.label),
+                  selected: selected == cat,
+                  selectedColor: c.accent,
+                  backgroundColor: c.surfaceAlt,
                   labelStyle: AppTypography.labelSmall.copyWith(
-                    color: selected == c ? AppColors.canvasDark : AppColors.textSecondary,
+                    color: selected == cat ? c.onAccent : c.textSecondary,
                   ),
                   onSelected: (_) {
                     HapticsHelper.selection();
-                    form.category.value = c;
+                    form.category.value = cat;
                   },
                 ),
             ],

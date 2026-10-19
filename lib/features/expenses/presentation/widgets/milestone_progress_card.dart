@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/luxury_badge.dart';
 import '../../domain/entities/card_milestone.dart';
@@ -72,10 +72,10 @@ class _MilestoneRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(_icon, size: AppDimensions.iconSm, color: AppColors.goldLight),
+              Icon(_icon, size: AppDimensions.iconSm, color: context.colors.accent),
               const SizedBox(width: AppDimensions.p8),
               Expanded(
-                child: Text('${progress.cardLabel} • ${m.title}', style: AppTypography.titleSmall),
+                child: Text('${progress.cardLabel} • ${m.title}', style: context.text.titleSmall ?? AppTypography.titleSmall),
               ),
               LuxuryBadge(label: status, variant: variant, isSmall: true),
             ],
@@ -83,15 +83,15 @@ class _MilestoneRow extends StatelessWidget {
           const SizedBox(height: AppDimensions.p8),
           SpendProgressBar(
             value: progress.progress,
-            color: progress.isAchieved ? AppColors.emerald : AppColors.gold,
+            color: progress.isAchieved ? context.colors.success : context.colors.accent,
           ),
           const SizedBox(height: AppDimensions.p4),
           Row(
             children: [
-              Expanded(child: Text(projection, style: AppTypography.bodySmall)),
+              Expanded(child: Text(projection, style: context.text.bodySmall ?? AppTypography.bodySmall)),
               Text(
                 '${CurrencyFormatter.formatCompact(progress.spent)} / ${CurrencyFormatter.formatCompact(m.targetSpend)}',
-                style: AppTypography.labelSmall,
+                style: context.text.labelSmall ?? AppTypography.labelSmall,
               ),
             ],
           ),

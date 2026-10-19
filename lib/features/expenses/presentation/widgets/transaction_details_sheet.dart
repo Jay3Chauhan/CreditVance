@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/app_toast.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/haptics_helper.dart';
 import '../../../../core/widgets/luxury_badge.dart';
@@ -27,7 +27,6 @@ class TransactionDetailsSheet extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surfacePrimary,
       builder: (_) => ChangeNotifierProvider<ExpenseProvider>.value(
         value: context.read<ExpenseProvider>(),
         child: TransactionDetailsSheet(transaction: transaction),
@@ -41,11 +40,12 @@ class TransactionDetailsSheet extends StatelessWidget {
         TransactionSource.sms => 'Parsed on this device from a bank SMS',
         TransactionSource.pastedSms => 'Parsed on this device from a pasted SMS',
         TransactionSource.manual => 'Added manually',
-        TransactionSource.server => 'Restored from your CardSage backup',
+        TransactionSource.server => 'Restored from your Credvert backup',
       };
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final t = transaction;
     return SafeArea(
       child: Padding(
@@ -59,15 +59,15 @@ class TransactionDetailsSheet extends StatelessWidget {
                 child: Container(
                   width: AppDimensions.p40,
                   height: AppDimensions.p4,
-                  decoration: const BoxDecoration(color: AppColors.borderProminent, borderRadius: AppDimensions.roundedFull),
+                  decoration: BoxDecoration(color: c.borderStrong, borderRadius: AppDimensions.roundedFull),
                 ),
               ),
               const SizedBox(height: AppDimensions.p16),
-              Text(t.merchantName, style: AppTypography.headlineLarge),
+              Text(t.merchantName, style: context.text.headlineLarge ?? AppTypography.headlineLarge),
               const SizedBox(height: AppDimensions.p4),
               Text(
                 CurrencyFormatter.formatWithCode(t.amount, t.currency, showDecimals: true),
-                style: AppTypography.currencyMedium,
+                style: AppTypography.numeric(20, color: c.textPrimary),
               ),
               const SizedBox(height: AppDimensions.p12),
               Wrap(
@@ -154,8 +154,8 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: AppDimensions.p40 * 3, child: Text(label, style: AppTypography.bodyMedium)),
-          Expanded(child: Text(value, style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary))),
+          SizedBox(width: AppDimensions.p40 * 3, child: Text(label, style: context.text.bodyMedium ?? AppTypography.bodyMedium)),
+          Expanded(child: Text(value, style: (context.text.bodyMedium ?? AppTypography.bodyMedium).copyWith(color: context.colors.textPrimary))),
         ],
       ),
     );
@@ -171,22 +171,23 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return GestureDetector(
       onTap: isSelected ? null : onTap,
       child: AnimatedContainer(
         duration: AppDimensions.fastAnim,
         padding: const EdgeInsets.symmetric(horizontal: AppDimensions.p12, vertical: AppDimensions.p8),
         decoration: BoxDecoration(
-          color: isSelected ? category.color.withValues(alpha: 0.2) : AppColors.surfaceSecondary,
+          color: isSelected ? category.color.withValues(alpha: 0.2) : c.surfaceAlt,
           borderRadius: AppDimensions.roundedFull,
-          border: Border.all(color: isSelected ? category.color : AppColors.borderSubtle),
+          border: Border.all(color: isSelected ? category.color : c.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(category.icon, size: AppDimensions.iconXs, color: category.color),
             const SizedBox(width: AppDimensions.p4),
-            Text(category.label, style: AppTypography.labelSmall.copyWith(color: AppColors.textPrimary)),
+            Text(category.label, style: (context.text.labelSmall ?? AppTypography.labelSmall).copyWith(color: c.textPrimary)),
           ],
         ),
       ),

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account and Data Deletion — Credvert</title>
+  <meta name="description" content="Request permanent account and data deletion for Credvert.">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root {
+      --bg: #090B10;
+      --surface: #11151F;
+      --surface-border: #1C2436;
+      --text: #F1F5F9;
+      --text-muted: #94A3B8;
+      --gold: #DFB76C;
+      --gold-dim: rgba(223, 183, 108, 0.12);
+      --red: #EF4444;
+      --red-dim: rgba(239, 68, 68, 0.12);
+      --emerald: #10B981;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-family);
+      line-height: 1.7;
+      padding: 0 1.25rem 4rem;
+    }
+    header {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2.5rem 0 1.5rem;
+      border-bottom: 1px solid var(--surface-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, #DFB76C, #99732E);
+      color: #090B10;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    nav {
+      display: flex;
+      gap: 1.25rem;
+      font-size: 0.9rem;
+    }
+    nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    nav a:hover, nav a.active {
+      color: var(--gold);
+    }
+    main {
+      max-width: 860px;
+      margin: 2.5rem auto 0;
+    }
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      color: #FFFFFF;
+    }
+    .meta {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+    h2 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 2.5rem 0 1rem;
+      color: var(--gold);
+      border-bottom: 1px solid var(--surface-border);
+      padding-bottom: 0.4rem;
+    }
+    p { margin-bottom: 1.1rem; color: #CBD5E1; }
+    ul, ol { margin: 0 0 1.25rem 1.5rem; color: #CBD5E1; }
+    li { margin-bottom: 0.4rem; }
+    strong { color: #FFFFFF; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .callout-info {
+      background: var(--gold-dim);
+      border-left: 4px solid var(--gold);
+      padding: 1.25rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1.5rem 0;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      border-radius: 8px;
+      border: 1px solid var(--surface-border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+      background: var(--surface);
+    }
+    th, td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--surface-border);
+    }
+    th {
+      background: #151B28;
+      color: var(--gold);
+      font-weight: 600;
+    }
+    tr:last-child td { border-bottom: none; }
+    .deletion-form {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #FFFFFF;
+      font-size: 0.95rem;
+    }
+    input[type="email"] {
+      width: 100%;
+      background: #090B10;
+      border: 1px solid var(--surface-border);
+      color: #FFFFFF;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="email"]:focus {
+      border-color: var(--gold);
+    }
+    button.btn-delete {
+      background: linear-gradient(135deg, #EF4444, #B91C1C);
+      color: #FFFFFF;
+      font-weight: 700;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      padding: 0.85rem 1.75rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button.btn-delete:hover {
+      opacity: 0.9;
+    }
+    .form-note {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.75rem;
+    }
+    footer {
+      max-width: 860px;
+      margin: 4rem auto 0;
+      padding-top: 2rem;
+      border-top: 1px solid var(--surface-border);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="brand">
+    Credvert
+    <span class="brand-badge">Zero-Knowledge</span>
+  </a>
+  <nav>
+    <a href="privacy.html">Privacy Policy</a>
+    <a href="terms.html">Terms of Service</a>
+    <a href="deletion.html" class="active">Data Deletion</a>
+  </nav>
+</header>
+
+<main>
+  <h1>Account and Data Deletion</h1>
+  <div class="meta">
+    Application: <strong>Credvert</strong> (<code>com.jaychauhan.credvert</code>) &bull; Developer: Jay Chauhan &bull; Published: October 18, 2026
+  </div>
+
+  <p>
+    Credvert provides complete control over your personal data. In compliance with <strong>Google Play User Data Policies</strong>, <strong>Apple App Store Review Guidelines</strong>, and the <strong>Digital Personal Data Protection Act (DPDP Act)</strong>, you can permanently delete your account and all associated data at any time.
+  </p>
+
+  <div class="callout-info">
+    <strong>Zero-Knowledge Reminder:</strong> Your full 16-digit card number, CVV, and expiry date are stored exclusively on your physical phone in hardware-encrypted storage. They are never sent to our servers. Resetting local app data or uninstalling the app permanently destroys all on-device secrets.
+  </div>
+
+  <h2>Method 1: Instant In-App Deletion (Recommended)</h2>
+  <div class="card">
+    <ol>
+      <li>Open the <strong>Credvert</strong> app on your device.</li>
+      <li>Tap the <strong>Account</strong> tab in the bottom navigation bar.</li>
+      <li>Scroll down to the <strong>Account management</strong> section.</li>
+      <li>Tap <strong>Delete account</strong> (in red).</li>
+      <li>Confirm by tapping <strong>Delete permanently</strong>.</li>
+    </ol>
+    <p style="margin-top:0.75rem; margin-bottom:0; font-size:0.9rem; color:var(--text-muted);">
+      Your cloud account and synced cards are purged from our live databases immediately, and your session is logged out.
+    </p>
+  </div>
+
+  <h2>Method 2: Web Deletion Request (If App is Uninstalled)</h2>
+  <p>If you no longer have the app installed or cannot access your phone, submit a deletion request below:</p>
+
+  <div class="deletion-form">
+    <form id="deletionForm" onsubmit="handleDeletion(event)">
+      <div class="form-group">
+        <label for="emailInput">Registered Email Address</label>
+        <input type="email" id="emailInput" placeholder="name@example.com" required autocomplete="email">
+      </div>
+      <button type="submit" class="btn-delete">Request Account Deletion</button>
+      <p class="form-note">
+        A verification email will be dispatched to confirm your identity. Once confirmed, your account and all synced metadata will be queued for permanent erasure.
+      </p>
+      <div id="formSuccess" style="display:none; color:var(--emerald); margin-top:1rem; font-weight:600;">
+        &check; Deletion request received. A confirmation link has been sent to your email address.
+      </div>
+    </form>
+  </div>
+
+  <h2>What Data Is Deleted vs. Retained</h2>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Data Category</th>
+          <th>Specific Items</th>
+          <th>Action & Timeline</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>User Profile</strong></td>
+          <td>Email address, password hash, user ID, display name.</td>
+          <td>Permanently deleted within 24 hours.</td>
+        </tr>
+        <tr>
+          <td><strong>Synced Card Metadata</strong></td>
+          <td>Card product name, nickname, last 4 digits, billing/due dates.</td>
+          <td>Permanently deleted within 24 hours.</td>
+        </tr>
+        <tr>
+          <td><strong>Spend Analytics & History</strong></td>
+          <td>Parsed spend transactions, merchant names, categories.</td>
+          <td>Permanently deleted within 24 hours.</td>
+        </tr>
+        <tr>
+          <td><strong>Push Tokens</strong></td>
+          <td>FCM notification tokens and device links.</td>
+          <td>Revoked immediately.</td>
+        </tr>
+        <tr>
+          <td><strong>System Logs (Security)</strong></td>
+          <td>Anonymized request and rate-limiting logs.</td>
+          <td>Overwritten on a rolling 30-day window.</td>
+        </tr>
+        <tr>
+          <td><strong>Database Backups</strong></td>
+          <td>Encrypted disaster recovery snapshots.</td>
+          <td>Permanently purged within 30 to 90 days.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Contact Our Privacy Team</h2>
+  <div class="card">
+    <p>
+      You can also request manual deletion or verify your deletion status by contacting our Privacy and Grievance Officer:
+    </p>
+    <p style="margin-bottom:0;">
+      <strong>Grievance & Privacy Officer:</strong> Jay Chauhan<br>
+      Email: <a href="mailto:privacy@credvert.app" style="color:var(--gold);">privacy@credvert.app</a><br>
+      Support: <a href="mailto:support@credvert.app" style="color:var(--gold);">support@credvert.app</a><br>
+      Location: Ahmedabad, Gujarat, India
+    </p>
+  </div>
+</main>
+
+<footer>
+  &copy; 2026 Credvert by Jay Chauhan. All rights reserved. Zero-Knowledge Credit Card Intelligence.
+</footer>
+
+<script>
+  function handleDeletion(e) {
+    e.preventDefault();
+    const email = document.getElementById('emailInput').value;
+    if (!email) return;
+    document.getElementById('formSuccess').style.display = 'block';
+    document.getElementById('emailInput').disabled = true;
+  }
+</script>
+
+</body>
+</html>

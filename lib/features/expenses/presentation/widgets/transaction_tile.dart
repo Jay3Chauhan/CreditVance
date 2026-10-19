@@ -7,6 +7,7 @@ import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/app_toast.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/haptics_helper.dart';
 import '../../../../core/widgets/luxury_badge.dart';
@@ -27,6 +28,7 @@ class TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final t = transaction;
     final isCredit = t.signedSpend < 0 || t.type == TransactionType.payment || t.type == TransactionType.credit;
     final amountText =
@@ -53,20 +55,20 @@ class TransactionTile extends StatelessWidget {
                       Flexible(
                         child: Text(
                           t.merchantName,
-                          style: AppTypography.titleMedium,
+                          style: context.text.titleMedium ?? AppTypography.titleMedium,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (t.needsReview) ...[
                         const SizedBox(width: AppDimensions.p4),
-                        const Icon(AppIcons.review, size: AppDimensions.iconXs, color: AppColors.amber),
+                        Icon(AppIcons.review, size: AppDimensions.iconXs, color: c.warning),
                       ],
                     ],
                   ),
                   Text(
                     '${_dateFormat.format(t.occurredAt)} • ${t.bankName}${t.cardLast4 == null ? '' : ' •• ${t.cardLast4}'}',
-                    style: AppTypography.bodySmall,
+                    style: context.text.bodySmall ?? AppTypography.bodySmall,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -76,8 +78,8 @@ class TransactionTile extends StatelessWidget {
             const SizedBox(width: AppDimensions.p8),
             Text(
               amountText,
-              style: AppTypography.titleMedium.copyWith(
-                color: isCredit ? AppColors.emeraldLight : AppColors.textPrimary,
+              style: (context.text.titleMedium ?? AppTypography.titleMedium).copyWith(
+                color: isCredit ? c.success : c.textPrimary,
               ),
             ),
           ],
@@ -121,6 +123,7 @@ class TransactionDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final t = transaction;
     final provider = context.read<ExpenseProvider>();
 
@@ -139,14 +142,14 @@ class TransactionDetailsSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(t.merchantName, style: AppTypography.headlineMedium),
-                      Text(_dateFormat.format(t.occurredAt), style: AppTypography.bodySmall),
+                      Text(t.merchantName, style: context.text.headlineMedium ?? AppTypography.headlineMedium),
+                      Text(_dateFormat.format(t.occurredAt), style: context.text.bodySmall ?? AppTypography.bodySmall),
                     ],
                   ),
                 ),
                 Text(
                   CurrencyFormatter.formatWithCode(t.amount, t.currency, showDecimals: true),
-                  style: AppTypography.currencyMedium,
+                  style: AppTypography.numeric(20, color: c.textPrimary),
                 ),
               ],
             ),
@@ -192,30 +195,30 @@ class TransactionDetailsSheet extends StatelessWidget {
               const SizedBox(height: AppDimensions.p12),
               Text(
                 'Available limit after this spend: ${CurrencyFormatter.format(t.availableLimit!, showDecimals: true)}',
-                style: AppTypography.bodyMedium,
+                style: context.text.bodyMedium ?? AppTypography.bodyMedium,
               ),
             ],
             const SizedBox(height: AppDimensions.p20),
-            Text('Category', style: AppTypography.titleSmall),
+            Text('Category', style: context.text.titleSmall ?? AppTypography.titleSmall),
             const SizedBox(height: AppDimensions.p8),
             Wrap(
               spacing: AppDimensions.p8,
               runSpacing: AppDimensions.p8,
               children: [
-                for (final c in SpendCategory.values)
+                for (final cat in SpendCategory.values)
                   ChoiceChip(
-                    label: Text(c.label),
-                    avatar: Icon(c.icon, size: AppDimensions.iconSm, color: c.color),
-                    selected: c == t.category,
-                    labelStyle: AppTypography.labelSmall.copyWith(
-                      color: c == t.category ? AppColors.canvasDark : AppColors.textSecondary,
+                    label: Text(cat.label),
+                    avatar: Icon(cat.icon, size: AppDimensions.iconSm, color: cat.color),
+                    selected: cat == t.category,
+                    labelStyle: (context.text.labelSmall ?? AppTypography.labelSmall).copyWith(
+                      color: cat == t.category ? c.onAccent : c.textSecondary,
                     ),
-                    selectedColor: AppColors.gold,
-                    backgroundColor: AppColors.surfaceSecondary,
-                    side: const BorderSide(color: AppColors.borderSubtle),
+                    selectedColor: c.accent,
+                    backgroundColor: c.surfaceAlt,
+                    side: BorderSide(color: c.border),
                     onSelected: (_) async {
                       HapticsHelper.selection();
-                      await provider.recategorize(t.id, c);
+                      await provider.recategorize(t.id, cat);
                       if (context.mounted) Navigator.of(context).pop();
                     },
                   ),
@@ -259,7 +262,7 @@ class RecentTransactionsCard extends StatelessWidget {
     return InsightsSection(
       title: 'Recent transactions',
       icon: AppIcons.list,
-      accent: AppColors.textSecondary,
+      accent: context.colors.textSecondary,
       index: index,
       trailing: TextButton(onPressed: onViewAll, child: const Text('View all')),
       child: Column(children: [for (final t in transactions) TransactionTile(transaction: t)]),

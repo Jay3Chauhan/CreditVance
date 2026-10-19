@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/luxury_badge.dart';
 import '../../../../core/widgets/luxury_glass_card.dart';
@@ -18,12 +19,14 @@ class SpendSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final change = analytics.changeVsPrevious;
     final isUp = (change ?? 0) > 0;
 
     return LuxuryGlassCard(
-      gradient: AppColors.obsidianGradient,
-      border: Border.all(color: AppColors.borderGlow),
+      gradient: c.isDark ? AppColors.obsidianGradient : null,
+      backgroundColor: c.isDark ? null : c.surface,
+      border: Border.all(color: c.isDark ? AppColors.borderGlow : c.border),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -32,7 +35,11 @@ class SpendSummaryCard extends StatelessWidget {
             children: [
               Text(
                 'NET CARD SPEND • ${analytics.period.label.toUpperCase()}',
-                style: AppTypography.labelSmall.copyWith(color: AppColors.goldLight),
+                style: (context.text.labelSmall ?? AppTypography.labelSmall).copyWith(
+                  color: c.isDark ? AppColors.goldLight : c.accent,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
               ),
               if (change != null)
                 LuxuryBadge(
@@ -50,7 +57,7 @@ class SpendSummaryCard extends StatelessWidget {
             curve: Curves.easeOutCubic,
             builder: (context, value, _) => Text(
               CurrencyFormatter.format(value),
-              style: AppTypography.currencyLarge,
+              style: AppTypography.numeric(32, color: c.textPrimary),
             ),
           ),
           const SizedBox(height: AppDimensions.p16),
@@ -62,7 +69,7 @@ class SpendSummaryCard extends StatelessWidget {
                 child: _Stat(
                   label: 'Refunds',
                   value: CurrencyFormatter.format(analytics.refunds),
-                  valueColor: AppColors.emeraldLight,
+                  valueColor: c.isDark ? AppColors.emeraldLight : c.success,
                 ),
               ),
             ],
@@ -99,19 +106,27 @@ class SpendSummaryCard extends StatelessWidget {
 class _Stat extends StatelessWidget {
   final String label;
   final String value;
-  final Color valueColor;
+  final Color? valueColor;
 
-  const _Stat({required this.label, required this.value, this.valueColor = AppColors.textPrimary});
+  const _Stat({required this.label, required this.value, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTypography.labelSmall),
+        Text(
+          label,
+          style: (context.text.labelSmall ?? AppTypography.labelSmall).copyWith(color: c.textTertiary),
+        ),
         const SizedBox(height: AppDimensions.p4),
-        Text(value, style: AppTypography.titleMedium.copyWith(color: valueColor)),
+        Text(
+          value,
+          style: (context.text.titleMedium ?? AppTypography.titleMedium).copyWith(color: valueColor ?? c.textPrimary),
+        ),
       ],
     );
   }
 }
+

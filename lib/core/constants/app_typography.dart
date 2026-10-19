@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'app_colors.dart';
 
 /// Typography scale for Credvert.
 ///
@@ -71,22 +70,19 @@ class AppTypography {
         height: 1.2,
       );
 
-  /// Named styles used by spend tracking. Colors stay on the dark canvas
-  /// those screens paint themselves.
-  static TextStyle get displayMedium =>
-      _sans(24, FontWeight.w700, spacing: -0.6, height: 1.2).copyWith(color: AppColors.textPrimary);
-  static TextStyle get headlineLarge =>
-      _sans(19, FontWeight.w700, spacing: -0.4, height: 1.25).copyWith(color: AppColors.textPrimary);
-  static TextStyle get headlineMedium =>
-      _sans(17, FontWeight.w700, spacing: -0.3, height: 1.3).copyWith(color: AppColors.textPrimary);
-  static TextStyle get titleMedium => _sans(14, FontWeight.w600).copyWith(color: AppColors.textPrimary);
-  static TextStyle get titleSmall => _sans(13, FontWeight.w600).copyWith(color: AppColors.textPrimary);
-  static TextStyle get bodyLarge => _sans(14, FontWeight.w400, height: 1.5).copyWith(color: AppColors.textSecondary);
-  static TextStyle get bodyMedium => _sans(13, FontWeight.w400, height: 1.45).copyWith(color: AppColors.textSecondary);
-  static TextStyle get bodySmall => _sans(12, FontWeight.w400, height: 1.4).copyWith(color: AppColors.textTertiary);
-  static TextStyle get labelLarge => _sans(13, FontWeight.w600, spacing: 0.1).copyWith(color: AppColors.textPrimary);
+  /// Named styles used as defaults. Colors are inherited from the active
+  /// theme's text styles unless overridden via [copyWith].
+  static TextStyle get displayMedium => _sans(24, FontWeight.w700, spacing: -0.6, height: 1.2);
+  static TextStyle get headlineLarge => _sans(19, FontWeight.w700, spacing: -0.4, height: 1.25);
+  static TextStyle get headlineMedium => _sans(17, FontWeight.w700, spacing: -0.3, height: 1.3);
+  static TextStyle get titleMedium => _sans(14, FontWeight.w600);
+  static TextStyle get titleSmall => _sans(13, FontWeight.w600);
+  static TextStyle get bodyLarge => _sans(14, FontWeight.w400, height: 1.5);
+  static TextStyle get bodyMedium => _sans(13, FontWeight.w400, height: 1.45);
+  static TextStyle get bodySmall => _sans(12, FontWeight.w400, height: 1.4);
+  static TextStyle get labelLarge => _sans(13, FontWeight.w600, spacing: 0.1);
   static TextStyle get labelSmall =>
-      _sans(10.5, FontWeight.w600, spacing: 0.5, height: 1.3).copyWith(color: AppColors.textSecondary);
-  static TextStyle get currencyLarge => numeric(32, color: AppColors.textPrimary);
-  static TextStyle get currencyMedium => numeric(20, color: AppColors.textPrimary);
+      _sans(10.5, FontWeight.w600, spacing: 0.5, height: 1.3);
+  static TextStyle get currencyLarge => numeric(32);
+  static TextStyle get currencyMedium => numeric(20);
 }

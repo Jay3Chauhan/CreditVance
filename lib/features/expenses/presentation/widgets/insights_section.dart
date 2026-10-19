@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/widgets/luxury_glass_card.dart';
 
 /// Titled glass card used for every analytics section, with a staggered entrance.
@@ -11,7 +11,7 @@ class InsightsSection extends StatelessWidget {
   final String title;
   final String? subtitle;
   final IconData icon;
-  final Color accent;
+  final Color? accent;
   final Widget? trailing;
   final Widget child;
   final int index;
@@ -21,7 +21,7 @@ class InsightsSection extends StatelessWidget {
     required this.title,
     this.subtitle,
     required this.icon,
-    this.accent = AppColors.gold,
+    this.accent,
     this.trailing,
     required this.child,
     this.index = 0,
@@ -29,20 +29,22 @@ class InsightsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final iconColor = accent ?? c.accent;
     return LuxuryGlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: AppDimensions.iconSm, color: accent),
+              Icon(icon, size: AppDimensions.iconSm, color: iconColor),
               const SizedBox(width: AppDimensions.p8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppTypography.titleMedium),
-                    if (subtitle != null) Text(subtitle!, style: AppTypography.bodySmall),
+                    Text(title, style: context.text.titleMedium ?? AppTypography.titleMedium),
+                    if (subtitle != null) Text(subtitle!, style: context.text.bodySmall ?? AppTypography.bodySmall),
                   ],
                 ),
               ),
@@ -63,12 +65,14 @@ class InsightsSection extends StatelessWidget {
 /// Thin animated horizontal progress bar.
 class SpendProgressBar extends StatelessWidget {
   final double value;
-  final Color color;
+  final Color? color;
 
-  const SpendProgressBar({super.key, required this.value, this.color = AppColors.gold});
+  const SpendProgressBar({super.key, required this.value, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final barColor = color ?? c.accent;
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: value.clamp(0.0, 1.0)),
       duration: AppDimensions.slowAnim,
@@ -78,8 +82,8 @@ class SpendProgressBar extends StatelessWidget {
         child: LinearProgressIndicator(
           value: animated,
           minHeight: AppDimensions.progressHeight,
-          backgroundColor: AppColors.surfaceElevated,
-          valueColor: AlwaysStoppedAnimation<Color>(color),
+          backgroundColor: c.surfaceHigh,
+          valueColor: AlwaysStoppedAnimation<Color>(barColor),
         ),
       ),
     );

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/haptics_helper.dart';
 import '../../../../core/widgets/empty_state_view.dart';
@@ -30,8 +30,7 @@ class TransactionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.canvasDark,
-      appBar: AppBar(title: Text('Transactions', style: AppTypography.headlineLarge)),
+      appBar: AppBar(title: Text('Transactions', style: context.text.headlineLarge ?? AppTypography.headlineLarge)),
       body: Column(
         children: [
           const _FilterBar(),
@@ -61,6 +60,7 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Selector<ExpenseProvider, (TransactionFilter, List<String>)>(
       selector: (_, p) => (p.filter, p.knownCardLast4s),
       shouldRebuild: (a, b) => a.$1 != b.$1 || a.$2.join() != b.$2.join(),
@@ -73,11 +73,11 @@ class _FilterBar extends StatelessWidget {
             children: [
               TextField(
                 onChanged: (q) => provider.setFilter(provider.filter.copyWith(query: q.trim())),
-                style: AppTypography.bodyLarge.copyWith(color: AppColors.textPrimary),
-                cursorColor: AppColors.gold,
-                decoration: const InputDecoration(
+                style: (context.text.bodyLarge ?? AppTypography.bodyLarge).copyWith(color: c.textPrimary),
+                cursorColor: c.accent,
+                decoration: InputDecoration(
                   hintText: 'Search merchant or bank',
-                  prefixIcon: Icon(AppIcons.search, color: AppColors.textTertiary, size: AppDimensions.iconMd),
+                  prefixIcon: Icon(AppIcons.search, color: c.textTertiary, size: AppDimensions.iconMd),
                 ),
               ),
               const SizedBox(height: AppDimensions.p8),
@@ -98,13 +98,13 @@ class _FilterBar extends StatelessWidget {
                     selected: filter.category == null,
                     onTap: () => provider.setFilter(filter.copyWith(clearCategory: true)),
                   ),
-                  for (final c in SpendCategory.values)
+                  for (final cat in SpendCategory.values)
                     _FilterChip(
-                      label: c.label,
-                      icon: c.icon,
-                      iconColor: c.color,
-                      selected: filter.category == c,
-                      onTap: () => provider.setFilter(filter.copyWith(category: c)),
+                      label: cat.label,
+                      icon: cat.icon,
+                      iconColor: cat.color,
+                      selected: filter.category == cat,
+                      onTap: () => provider.setFilter(filter.copyWith(category: cat)),
                     ),
                 ],
               ),
@@ -166,6 +166,7 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return GestureDetector(
       onTap: () {
         HapticsHelper.selection();
@@ -175,21 +176,21 @@ class _FilterChip extends StatelessWidget {
         duration: AppDimensions.fastAnim,
         padding: const EdgeInsets.symmetric(horizontal: AppDimensions.p12),
         decoration: BoxDecoration(
-          color: selected ? AppColors.gold : AppColors.surfaceSecondary,
+          color: selected ? c.accent : c.surfaceAlt,
           borderRadius: AppDimensions.roundedFull,
-          border: Border.all(color: selected ? AppColors.gold : AppColors.borderSubtle),
+          border: Border.all(color: selected ? c.accent : c.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: AppDimensions.iconXs, color: selected ? AppColors.canvasDark : iconColor),
+              Icon(icon, size: AppDimensions.iconXs, color: selected ? c.onAccent : iconColor),
               const SizedBox(width: AppDimensions.p4),
             ],
             Text(
               label,
-              style: AppTypography.labelSmall.copyWith(
-                color: selected ? AppColors.canvasDark : AppColors.textSecondary,
+              style: (context.text.labelSmall ?? AppTypography.labelSmall).copyWith(
+                color: selected ? c.onAccent : c.textSecondary,
               ),
             ),
           ],
@@ -238,8 +239,11 @@ class _GroupedTransactionList extends StatelessWidget {
             padding: const EdgeInsets.only(top: AppDimensions.p12, bottom: AppDimensions.p4),
             child: Row(
               children: [
-                Expanded(child: Text(_dayFormat.format(row), style: AppTypography.labelLarge)),
-                Text(CurrencyFormatter.format(netFor(row)), style: AppTypography.labelSmall),
+                Expanded(child: Text(_dayFormat.format(row), style: context.text.labelLarge ?? AppTypography.labelLarge)),
+                Text(
+                  CurrencyFormatter.format(netFor(row)),
+                  style: (context.text.labelSmall ?? AppTypography.labelSmall).copyWith(color: context.colors.textSecondary),
+                ),
               ],
             ),
           );
@@ -249,3 +253,4 @@ class _GroupedTransactionList extends StatelessWidget {
     );
   }
 }
+

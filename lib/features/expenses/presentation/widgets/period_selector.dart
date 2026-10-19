@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/haptics_helper.dart';
 import '../../domain/entities/spend_analytics.dart';
 import '../providers/expense_provider.dart';
@@ -50,6 +50,7 @@ class _PeriodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -57,17 +58,18 @@ class _PeriodChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppDimensions.p16),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.gold : AppColors.surfaceSecondary,
+          color: isSelected ? c.accent : c.surfaceAlt,
           borderRadius: AppDimensions.roundedFull,
-          border: Border.all(color: isSelected ? AppColors.gold : AppColors.borderSubtle),
+          border: Border.all(color: isSelected ? c.accent : c.border),
         ),
         child: Text(
           label,
-          style: AppTypography.labelLarge.copyWith(
-            color: isSelected ? AppColors.canvasDark : AppColors.textSecondary,
+          style: (context.text.labelLarge ?? AppTypography.labelLarge).copyWith(
+            color: isSelected ? c.onAccent : c.textSecondary,
           ),
         ),
       ),
     );
   }
 }
+

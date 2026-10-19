@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_dimensions.dart';
 import '../constants/app_typography.dart';
+import '../utils/context_ext.dart';
 import '../utils/haptics_helper.dart';
 
 enum LuxuryButtonVariant {
@@ -35,6 +36,7 @@ class LuxuryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final bool isEnabled = onPressed != null && !isLoading;
     final pressedNotifier = ValueNotifier<bool>(false);
 
@@ -45,24 +47,28 @@ class LuxuryButton extends StatelessWidget {
 
     switch (variant) {
       case LuxuryButtonVariant.primary:
-        gradient = isEnabled ? AppColors.goldGradient : null;
-        backgroundColor = isEnabled ? AppColors.gold : AppColors.surfaceElevated;
-        textColor = isEnabled ? AppColors.canvasDark : AppColors.textDisabled;
+        gradient = isEnabled
+            ? (c.isDark
+                ? AppColors.goldGradient
+                : LinearGradient(colors: [c.accent, c.accent.withValues(alpha: 0.88)]))
+            : null;
+        backgroundColor = isEnabled ? c.accent : c.surfaceAlt;
+        textColor = isEnabled ? c.onAccent : c.textTertiary;
         break;
       case LuxuryButtonVariant.secondary:
-        backgroundColor = AppColors.surfaceElevated;
-        textColor = AppColors.textPrimary;
-        border = Border.all(color: AppColors.borderSubtle);
+        backgroundColor = c.surfaceAlt;
+        textColor = c.textPrimary;
+        border = Border.all(color: c.border);
         break;
       case LuxuryButtonVariant.outline:
         backgroundColor = Colors.transparent;
-        textColor = AppColors.gold;
-        border = Border.all(color: AppColors.gold.withOpacity(0.5));
+        textColor = c.accent;
+        border = Border.all(color: c.accent.withValues(alpha: 0.5));
         break;
       case LuxuryButtonVariant.danger:
-        backgroundColor = AppColors.error.withOpacity(0.15);
-        textColor = AppColors.error;
-        border = Border.all(color: AppColors.error.withOpacity(0.3));
+        backgroundColor = c.tint(c.danger, c.isDark ? 0.15 : 0.10);
+        textColor = c.danger;
+        border = Border.all(color: c.tint(c.danger, 0.3));
         break;
     }
 
@@ -97,7 +103,7 @@ class LuxuryButton extends StatelessWidget {
                     boxShadow: variant == LuxuryButtonVariant.primary && isEnabled
                         ? [
                             BoxShadow(
-                              color: AppColors.gold.withOpacity(isPressed ? 0.35 : 0.2),
+                              color: c.accent.withValues(alpha: isPressed ? 0.35 : 0.2),
                               blurRadius: isPressed ? 22 : 16,
                               offset: const Offset(0, 4),
                             )

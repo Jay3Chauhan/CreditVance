@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/luxury_badge.dart';
 import '../../domain/entities/bill_notice.dart';
@@ -24,7 +24,7 @@ class BillRemindersCard extends StatelessWidget {
       title: 'Upcoming bills',
       subtitle: unpaid == 0 ? 'All caught up' : '$unpaid to pay',
       icon: AppIcons.bell,
-      accent: unpaid == 0 ? AppColors.emeraldLight : AppColors.amber,
+      accent: unpaid == 0 ? context.colors.success : context.colors.warning,
       index: index,
       child: Column(children: [for (final b in bills) _BillRow(status: b)]),
     );
@@ -66,14 +66,14 @@ class _BillRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppDimensions.p12),
       child: Row(
         children: [
-          const CategoryIconTile(icon: AppIcons.receipt, color: AppColors.amber, size: AppDimensions.avatarSm),
+          CategoryIconTile(icon: AppIcons.receipt, color: context.colors.warning, size: AppDimensions.avatarSm),
           const SizedBox(width: AppDimensions.p12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTypography.titleSmall),
-                Text('$due$minimum', style: AppTypography.bodySmall),
+                Text(title, style: context.text.titleSmall ?? AppTypography.titleSmall),
+                Text('$due$minimum', style: context.text.bodySmall ?? AppTypography.bodySmall),
               ],
             ),
           ),
@@ -82,7 +82,7 @@ class _BillRow extends StatelessWidget {
             children: [
               Text(
                 notice.totalDue == null ? '—' : CurrencyFormatter.format(notice.totalDue!, showDecimals: true),
-                style: AppTypography.titleSmall,
+                style: context.text.titleSmall ?? AppTypography.titleSmall,
               ),
               const SizedBox(height: AppDimensions.p4),
               LuxuryBadge(label: label, variant: variant, isSmall: true),

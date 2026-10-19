@@ -3,6 +3,8 @@ import '../constants/app_colors.dart';
 import '../constants/app_dimensions.dart';
 import '../constants/app_typography.dart';
 
+import '../utils/context_ext.dart';
+
 enum LuxuryBadgeVariant {
   gold,
   emerald,
@@ -28,35 +30,36 @@ class LuxuryBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     Color bg;
     Color border;
     Color text;
 
     switch (variant) {
       case LuxuryBadgeVariant.gold:
-        bg = AppColors.gold.withOpacity(0.12);
-        border = AppColors.gold.withOpacity(0.35);
-        text = AppColors.goldLight;
+        bg = c.tint(c.accent, c.isDark ? 0.12 : 0.08);
+        border = c.tint(c.accent, 0.35);
+        text = c.isDark ? AppColors.goldLight : c.accent;
         break;
       case LuxuryBadgeVariant.emerald:
-        bg = AppColors.emerald.withOpacity(0.12);
-        border = AppColors.emerald.withOpacity(0.35);
-        text = AppColors.emeraldLight;
+        bg = c.tint(c.success, c.isDark ? 0.12 : 0.08);
+        border = c.tint(c.success, 0.35);
+        text = c.isDark ? AppColors.emeraldLight : c.success;
         break;
       case LuxuryBadgeVariant.sapphire:
-        bg = AppColors.sapphire.withOpacity(0.12);
-        border = AppColors.sapphire.withOpacity(0.35);
-        text = AppColors.sapphireLight;
+        bg = c.tint(c.info, c.isDark ? 0.12 : 0.08);
+        border = c.tint(c.info, 0.35);
+        text = c.isDark ? AppColors.sapphireLight : c.info;
         break;
       case LuxuryBadgeVariant.neutral:
-        bg = AppColors.surfaceElevated;
-        border = AppColors.borderSubtle;
-        text = AppColors.textSecondary;
+        bg = c.surfaceAlt;
+        border = c.border;
+        text = c.textSecondary;
         break;
       case LuxuryBadgeVariant.danger:
-        bg = AppColors.rose.withOpacity(0.12);
-        border = AppColors.rose.withOpacity(0.35);
-        text = AppColors.rose;
+        bg = c.tint(c.danger, c.isDark ? 0.12 : 0.08);
+        border = c.tint(c.danger, 0.35);
+        text = c.danger;
         break;
     }
 

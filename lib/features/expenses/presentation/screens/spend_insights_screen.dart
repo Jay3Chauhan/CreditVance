@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/haptics_helper.dart';
 import '../../../../core/utils/view_state.dart';
 import '../../../../core/widgets/empty_state_view.dart';
@@ -40,32 +40,32 @@ class SpendInsightsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Scaffold(
-      backgroundColor: AppColors.canvasDark,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(AppStrings.spendsTitle, style: AppTypography.headlineLarge),
+            Text(AppStrings.spendsTitle, style: context.text.headlineLarge ?? AppTypography.headlineLarge),
             Text(
               AppStrings.spendsSubtitle,
-              style: AppTypography.labelSmall.copyWith(color: AppColors.emeraldLight),
+              style: (context.text.labelSmall ?? AppTypography.labelSmall).copyWith(color: c.success),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(AppIcons.list, color: AppColors.textPrimary),
+            icon: Icon(AppIcons.list, color: c.textPrimary),
             tooltip: 'All transactions',
             onPressed: () => TransactionsScreen.open(context),
           ),
           IconButton(
-            icon: const Icon(AppIcons.add, color: AppColors.gold, size: AppDimensions.iconLg),
+            icon: Icon(AppIcons.add, color: c.accent, size: AppDimensions.iconLg),
             tooltip: 'Add spend',
             onPressed: () => AddTransactionScreen.open(context),
           ),
           IconButton(
-            icon: const Icon(AppIcons.settings, color: AppColors.textSecondary),
+            icon: Icon(AppIcons.settings, color: c.textSecondary),
             tooltip: 'Tracking & privacy',
             onPressed: () => SmsTrackingSettingsSheet.show(context),
           ),
@@ -83,8 +83,8 @@ class SpendInsightsScreen extends StatelessWidget {
             );
           }
           return RefreshIndicator(
-            color: AppColors.gold,
-            backgroundColor: AppColors.surfacePrimary,
+            color: c.accent,
+            backgroundColor: c.surface,
             onRefresh: provider.refresh,
             child: state.isEmpty ? const _EmptyInsights() : const _InsightsContent(),
           );

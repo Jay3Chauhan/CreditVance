@@ -8,6 +8,7 @@ import 'package:toastification/toastification.dart';
 import 'core/constants/app_strings.dart';
 import 'core/firebase/analytics_service.dart';
 import 'core/firebase/firebase_bootstrap.dart';
+import 'core/firebase/messaging_service.dart';
 import 'core/navigation/root_navigator.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/local_cache_service.dart';
@@ -49,6 +50,7 @@ Future<void> main() async {
   final cache = LocalCacheService(prefs);
   final vault = SecureVaultService();
   final api = ApiClient(cacheService: cache);
+  MessagingService.bindApiClient(api);
 
   final CatalogRepository catalogRepo = CatalogRepositoryImpl(apiClient: api, cacheService: cache);
   final walletRepo = WalletRepositoryImpl(apiClient: api, vaultService: vault, cacheService: cache);
@@ -118,6 +120,7 @@ Future<void> main() async {
       if (auth.isSignedIn) {
         shortlist.refresh();
         home.loadBanners('wallet', audience: 'member', force: true);
+        unawaited(MessagingService.syncDeviceToken(api));
       } else {
         shortlist.clear();
         home.clearMemberContent();
@@ -126,6 +129,7 @@ Future<void> main() async {
       wallet.reset();
       shortlist.clear();
       home.clearMemberContent();
+      unawaited(MessagingService.unregisterDeviceToken(api));
       if (previous == AuthStatus.signedIn || previous == AuthStatus.guest) {
         unawaited(expenses.clearOnSignOut());
       }
@@ -155,6 +159,7 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
+        Provider<ApiClient>.value(value: api),
         Provider<SecureVaultService>.value(value: vault),
         Provider<CatalogRepository>.value(value: catalogRepo),
         Provider<ContentRepository>.value(value: content),

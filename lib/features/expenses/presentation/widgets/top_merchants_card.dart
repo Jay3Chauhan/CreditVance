@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/context_ext.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/entities/spend_analytics.dart';
 import 'category_visuals.dart';
@@ -18,6 +19,7 @@ class TopMerchantsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return InsightsSection(
       title: 'Top merchants',
       icon: AppIcons.store,
@@ -32,7 +34,10 @@ class TopMerchantsCard extends StatelessWidget {
                 children: [
                   SizedBox(
                     width: AppDimensions.p24,
-                    child: Text('${i + 1}', style: AppTypography.labelLarge.copyWith(color: AppColors.textTertiary)),
+                    child: Text(
+                      '${i + 1}',
+                      style: (context.text.labelLarge ?? AppTypography.labelLarge).copyWith(color: c.textTertiary),
+                    ),
                   ),
                   CategoryIconTile(
                     icon: merchants[i].category.icon,
@@ -46,18 +51,21 @@ class TopMerchantsCard extends StatelessWidget {
                       children: [
                         Text(
                           merchants[i].merchantName,
-                          style: AppTypography.titleSmall,
+                          style: context.text.titleSmall ?? AppTypography.titleSmall,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           '${merchants[i].count} visit${merchants[i].count == 1 ? '' : 's'} • ${merchants[i].category.label}',
-                          style: AppTypography.bodySmall,
+                          style: context.text.bodySmall ?? AppTypography.bodySmall,
                         ),
                       ],
                     ),
                   ),
-                  Text(CurrencyFormatter.format(merchants[i].amount), style: AppTypography.titleSmall),
+                  Text(
+                    CurrencyFormatter.format(merchants[i].amount),
+                    style: context.text.titleSmall ?? AppTypography.titleSmall,
+                  ),
                 ],
               ),
             ),
